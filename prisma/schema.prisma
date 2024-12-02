@@ -26,6 +26,9 @@ model User {
   updatedAt DateTime   @updatedAt
   Shop      Shop[]
   Order     Order[]
+  Review    Review[]
+  Cart      Cart[]
+  Follow    Follow[]
 
   @@map("users") // Maps the model to the "users" table in the database
 }
@@ -43,6 +46,7 @@ model Shop {
   Product       Product[]
   // Relations
   vendor        User      @relation(fields: [vendorId], references: [id])
+  Follow        Follow[]
 
   @@map("shops") // Maps this model to the "shops" table in the database
 }
@@ -76,6 +80,8 @@ model Product {
   shop      Shop        @relation(fields: [shopId], references: [id])
   category  Category    @relation(fields: [categoryId], references: [id])
   OrderItem OrderItem[]
+  Review    Review[]
+  Cart      Cart[]
 
   @@map("products") // Maps this model to the "products" table in the database
 }
@@ -91,8 +97,9 @@ model Order {
   updatedAt     DateTime      @updatedAt
 
   // Relations
-  customer  User        @relation(fields: [customerId], references: [id])
-  OrderItem OrderItem[]
+  customer    User          @relation(fields: [customerId], references: [id])
+  OrderItem   OrderItem[]
+  Transaction Transaction[]
 
   @@map("orders") // Maps this model to the "orders" table in the database
 }
@@ -109,6 +116,74 @@ model OrderItem {
   product Product @relation(fields: [productId], references: [id])
 
   @@map("order_items") // Maps this model to the "order_items" table in the database
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  productId  String
+  customerId String
+  rating     Int
+  comment    String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  // Relations
+  product  Product @relation(fields: [productId], references: [id])
+  customer User    @relation(fields: [customerId], references: [id])
+
+  @@map("reviews") // Maps this model to the "reviews" table in the database
+}
+
+model Cart {
+  id         String   @id @default(uuid())
+  customerId String
+  productId  String
+  quantity   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  customer User    @relation(fields: [customerId], references: [id])
+  product  Product @relation(fields: [productId], references: [id])
+
+  @@map("cart") // Maps this model to the "cart" table in the database
+}
+
+model Follow {
+  id         String   @id @default(uuid())
+  customerId String
+  shopId     String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  customer User @relation(fields: [customerId], references: [id])
+  shop     Shop @relation(fields: [shopId], references: [id])
+
+  @@map("follows") // Maps this model to the "follows" table in the database
+}
+
+model Coupon {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  discountPercent Float
+  validFrom       DateTime
+  validTo         DateTime
+  createdAt       DateTime @default(now())
+
+  @@map("coupons") // Maps this model to the "coupons" table in the database
+}
+
+model Transaction {
+  id            String        @id @default(uuid())
+  orderId       String
+  transactionId String        @unique
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentStatus PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("transactions") // Maps this model to the "transactions" table in the database
 }
 
 // Enum for role validation
