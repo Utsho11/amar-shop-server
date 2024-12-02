@@ -24,8 +24,58 @@ model User {
   isDeleted Boolean    @default(false)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  Shop      Shop[]
 
   @@map("users") // Maps the model to the "users" table in the database
+}
+
+model Shop {
+  id            String    @id @default(uuid())
+  vendorId      String
+  name          String
+  logoUrl       String?
+  description   String?   @db.Text
+  isDeleted     Boolean   @default(false)
+  isBlacklisted Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  Product       Product[]
+  // Relations
+  vendor        User      @relation(fields: [vendorId], references: [id])
+
+  @@map("shops") // Maps this model to the "shops" table in the database
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique @db.VarChar(50)
+  description String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  Product     Product[]
+
+  @@map("categories") // Maps this model to the "categories" table in the database
+}
+
+model Product {
+  id             String   @id @default(uuid())
+  shopId         String
+  name           String   @db.VarChar(150)
+  description    String?  @db.Text
+  price          Decimal  @db.Decimal(10, 2)
+  categoryId     String
+  discount       Decimal  @default(0) @db.Decimal(5, 2)
+  inventoryCount Int      @default(0)
+  imageUrls      String[]
+  isDeleted      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  shop     Shop     @relation(fields: [shopId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@map("products") // Maps this model to the "products" table in the database
 }
 
 // Enum for role validation
