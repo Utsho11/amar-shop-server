@@ -26,4 +26,14 @@ const createUserSchema = z.object({
   }),
 });
 
-export const UserValidation = { createUserSchema };
+const updateUserSchema = z.object({
+  body: z.object({
+    name: z.string().optional(),
+    email: z.string().optional(),
+    password: z.string().optional(),
+    phone: z.string().optional(),
+    role: z.enum(["ADMIN", "VENDOR", "CUSTOMER"]).optional(),
+  }),
+});
+
+export const UserValidation = { createUserSchema, updateUserSchema };
