@@ -25,6 +25,7 @@ model User {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   Shop      Shop[]
+  Order     Order[]
 
   @@map("users") // Maps the model to the "users" table in the database
 }
@@ -72,10 +73,42 @@ model Product {
   updatedAt      DateTime @updatedAt
 
   // Relations
-  shop     Shop     @relation(fields: [shopId], references: [id])
-  category Category @relation(fields: [categoryId], references: [id])
+  shop      Shop        @relation(fields: [shopId], references: [id])
+  category  Category    @relation(fields: [categoryId], references: [id])
+  OrderItem OrderItem[]
 
   @@map("products") // Maps this model to the "products" table in the database
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  customerId    String
+  status        OrderStatus   @default(PENDING)
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  paymentMethod String
+  paymentStatus PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  customer  User        @relation(fields: [customerId], references: [id])
+  OrderItem OrderItem[]
+
+  @@map("orders") // Maps this model to the "orders" table in the database
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+
+  // Relations
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items") // Maps this model to the "order_items" table in the database
 }
 
 // Enum for role validation
@@ -89,4 +122,16 @@ enum UserStatus {
   ACTIVE
   BLOCKED
   DELETED
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
 }
