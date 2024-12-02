@@ -14,16 +14,17 @@ datasource db {
 }
 
 model User {
-  id        String     @id @default(uuid())
+  id        String      @id @default(uuid())
   role      UserRole
   name      String
-  email     String     @unique
+  email     String      @unique
   password  String
+  image     String?
   phone     String?
-  status    UserStatus @default(ACTIVE)
-  isDeleted Boolean    @default(false)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  status    UserStatus? @default(ACTIVE)
+  isDeleted Boolean?    @default(false)
+  createdAt DateTime?   @default(now())
+  updatedAt DateTime?   @updatedAt
   Shop      Shop[]
   Order     Order[]
   Review    Review[]
@@ -35,7 +36,7 @@ model User {
 
 model Shop {
   id            String    @id @default(uuid())
-  vendorId      String
+  vendorEmail   String
   name          String
   logoUrl       String?
   description   String?   @db.Text
@@ -45,7 +46,7 @@ model Shop {
   updatedAt     DateTime  @updatedAt
   Product       Product[]
   // Relations
-  vendor        User      @relation(fields: [vendorId], references: [id])
+  vendor        User      @relation(fields: [vendorEmail], references: [email])
   Follow        Follow[]
 
   @@map("shops") // Maps this model to the "shops" table in the database
@@ -88,7 +89,7 @@ model Product {
 
 model Order {
   id            String        @id @default(uuid())
-  customerId    String
+  customerEmail String
   status        OrderStatus   @default(PENDING)
   totalAmount   Decimal       @db.Decimal(10, 2)
   paymentMethod String
@@ -97,7 +98,7 @@ model Order {
   updatedAt     DateTime      @updatedAt
 
   // Relations
-  customer    User          @relation(fields: [customerId], references: [id])
+  customer    User          @relation(fields: [customerEmail], references: [email])
   OrderItem   OrderItem[]
   Transaction Transaction[]
 
@@ -119,43 +120,43 @@ model OrderItem {
 }
 
 model Review {
-  id         String   @id @default(uuid())
-  productId  String
-  customerId String
-  rating     Int
-  comment    String?  @db.Text
-  createdAt  DateTime @default(now())
+  id            String   @id @default(uuid())
+  productId     String
+  customerEmail String
+  rating        Int
+  comment       String?  @db.Text
+  createdAt     DateTime @default(now())
 
   // Relations
   product  Product @relation(fields: [productId], references: [id])
-  customer User    @relation(fields: [customerId], references: [id])
+  customer User    @relation(fields: [customerEmail], references: [email])
 
   @@map("reviews") // Maps this model to the "reviews" table in the database
 }
 
 model Cart {
-  id         String   @id @default(uuid())
-  customerId String
-  productId  String
-  quantity   Int
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String   @id @default(uuid())
+  customerEmail String
+  productId     String
+  quantity      Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
-  customer User    @relation(fields: [customerId], references: [id])
+  customer User    @relation(fields: [customerEmail], references: [email])
   product  Product @relation(fields: [productId], references: [id])
 
   @@map("cart") // Maps this model to the "cart" table in the database
 }
 
 model Follow {
-  id         String   @id @default(uuid())
-  customerId String
-  shopId     String
-  createdAt  DateTime @default(now())
+  id            String   @id @default(uuid())
+  customerEmail String
+  shopId        String
+  createdAt     DateTime @default(now())
 
   // Relations
-  customer User @relation(fields: [customerId], references: [id])
+  customer User @relation(fields: [customerEmail], references: [email])
   shop     Shop @relation(fields: [shopId], references: [id])
 
   @@map("follows") // Maps this model to the "follows" table in the database
