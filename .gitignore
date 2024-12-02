@@ -1,4 +1,4 @@
 node_modules
 # Keep environment variables out of version control
 .env
-prisma/migrations
+/home/utsho/web devlopment/Assignment/Amar Shop/Amar-Shop-Server/prisma/migrations
