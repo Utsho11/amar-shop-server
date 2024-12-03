@@ -14,24 +14,69 @@ datasource db {
 }
 
 model User {
-  id        String      @id @default(uuid())
-  role      UserRole
+  id                 String      @id @default(uuid())
+  role               UserRole
+  email              String      @unique
+  password           String
+  needPasswordChange Boolean     @default(true)
+  status             UserStatus? @default(ACTIVE)
+  isDeleted          Boolean?    @default(false)
+  createdAt          DateTime?   @default(now())
+  updatedAt          DateTime?   @updatedAt
+  Admin              Admin?
+  Customer           Customer?
+  Vendor             Vendor?
+
+  @@map("users") // Maps the model to the "users" table in the database
+}
+
+model Admin {
+  id        String    @id @default(uuid())
   name      String
-  email     String      @unique
-  password  String
+  email     String    @unique
   image     String?
   phone     String?
-  status    UserStatus? @default(ACTIVE)
-  isDeleted Boolean?    @default(false)
-  createdAt DateTime?   @default(now())
-  updatedAt DateTime?   @updatedAt
-  Shop      Shop[]
+  isDeleted Boolean?  @default(false)
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+
+  user User @relation(fields: [email], references: [email])
+
+  @@map("admins") // Maps the model to the "users" table in the database
+}
+
+model Customer {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  image     String?
+  phone     String?
+  isDeleted Boolean?  @default(false)
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
   Order     Order[]
   Review    Review[]
   Cart      Cart[]
   Follow    Follow[]
 
-  @@map("users") // Maps the model to the "users" table in the database
+  user User @relation(fields: [email], references: [email])
+
+  @@map("customers") // Maps the model to the "users" table in the database
+}
+
+model Vendor {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  image     String?
+  phone     String?
+  isDeleted Boolean?  @default(false)
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+  Shop      Shop[]
+  user      User      @relation(fields: [email], references: [email])
+
+  @@map("vendors") // Maps the model to the "users" table in the database
 }
 
 model Shop {
@@ -45,9 +90,9 @@ model Shop {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   Product       Product[]
-  // Relations
-  vendor        User      @relation(fields: [vendorEmail], references: [email])
   Follow        Follow[]
+  // Relations
+  vendor        Vendor    @relation(fields: [vendorEmail], references: [email])
 
   @@map("shops") // Maps this model to the "shops" table in the database
 }
@@ -84,7 +129,6 @@ model Product {
   category  Category    @relation(fields: [categoryId], references: [id])
   OrderItem OrderItem[]
   Review    Review[]
-  Cart      Cart[]
 
   @@map("products") // Maps this model to the "products" table in the database
 }
@@ -100,7 +144,7 @@ model Order {
   updatedAt     DateTime      @updatedAt
 
   // Relations
-  customer    User          @relation(fields: [customerEmail], references: [email])
+  customer    Customer      @relation(fields: [customerEmail], references: [email])
   OrderItem   OrderItem[]
   Transaction Transaction[]
 
@@ -130,8 +174,8 @@ model Review {
   createdAt     DateTime @default(now())
 
   // Relations
-  product  Product @relation(fields: [productId], references: [id])
-  customer User    @relation(fields: [customerEmail], references: [email])
+  product  Product  @relation(fields: [productId], references: [id])
+  customer Customer @relation(fields: [customerEmail], references: [email])
 
   @@map("reviews") // Maps this model to the "reviews" table in the database
 }
@@ -145,8 +189,9 @@ model Cart {
   updatedAt     DateTime @updatedAt
 
   // Relations
-  customer User    @relation(fields: [customerEmail], references: [email])
-  product  Product @relation(fields: [productId], references: [id])
+
+  Customer   Customer? @relation(fields: [customerEmail], references: [id])
+  customerId String?
 
   @@map("cart") // Maps this model to the "cart" table in the database
 }
@@ -158,8 +203,8 @@ model Follow {
   createdAt     DateTime @default(now())
 
   // Relations
-  customer User @relation(fields: [customerEmail], references: [email])
-  shop     Shop @relation(fields: [shopId], references: [id])
+  customer Customer @relation(fields: [customerEmail], references: [email])
+  shop     Shop     @relation(fields: [shopId], references: [id])
 
   @@map("follows") // Maps this model to the "follows" table in the database
 }

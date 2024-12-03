@@ -2,7 +2,7 @@ import { Request } from "express";
 import prisma from "../../../shared/prisma";
 import httpStatus from "http-status";
 import { IAuthUser } from "../../interfaces/common";
-import { UserStatus } from "@prisma/client";
+import { UserRole, UserStatus } from "@prisma/client";
 import { IFile } from "../../interfaces/file";
 
 const getAllUsersFromDB = async () => {
@@ -28,11 +28,27 @@ const updateUserIntoDB = async (user: IAuthUser, req: Request) => {
   payload.image = file?.path;
 
   try {
-    const profileInfo = await prisma.user.update({
-      where: { email: userInfo.email, status: UserStatus.ACTIVE },
-      data: payload,
-    });
-    return { ...profileInfo };
+    if (user?.role === UserRole.ADMIN) {
+      const profileInfo = await prisma.admin.update({
+        where: { email: userInfo.email },
+        data: payload,
+      });
+      return { ...profileInfo };
+    }
+    if (user?.role === UserRole.CUSTOMER) {
+      const profileInfo = await prisma.customer.update({
+        where: { email: userInfo.email },
+        data: payload,
+      });
+      return { ...profileInfo };
+    }
+    if (user?.role === UserRole.VENDOR) {
+      const profileInfo = await prisma.vendor.update({
+        where: { email: userInfo.email },
+        data: payload,
+      });
+      return { ...profileInfo };
+    }
   } catch (error) {
     throw new Error("Failed to update user!!!");
   }

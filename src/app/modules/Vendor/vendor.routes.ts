@@ -1,9 +1,9 @@
 import express from "express";
 import auth from "../../middlewares/auth";
-import { UserRole } from "@prisma/client";
-import { ShopControllers } from "./shop.controllers";
 import { fileUploader } from "../../helpers/fileUploader";
+import { UserRole } from "@prisma/client";
 import { parseBody } from "../../middlewares/bodyParser";
+import { ShopControllers } from "./Shops/shop.controllers";
 
 const router = express.Router();
 
@@ -14,5 +14,4 @@ router.post(
   parseBody,
   ShopControllers.createShop
 );
-
-export const ShopRoutes = router;
+export const VendorRoutes = router;

@@ -1,11 +1,15 @@
 import express from "express";
 import auth from "../../middlewares/auth";
 import { UserRole } from "@prisma/client";
+import { AdminControllers } from "./admin.controllers";
 import { fileUploader } from "../../helpers/fileUploader";
 import { parseBody } from "../../middlewares/bodyParser";
-import { CategoryControllers } from "./category.controllers";
+import { CategoryControllers } from "./Category/category.controllers";
+import { UserControllers } from "../User/user.controllers";
 
 const router = express.Router();
+
+router.get("/users", auth(UserRole.ADMIN), UserControllers.getAllUser);
 
 router.post(
   "/create-category",
@@ -28,4 +32,10 @@ router.delete(
   CategoryControllers.deleteCategory
 );
 
-export const CategoryRoutes = router;
+router.patch(
+  "/suspend-user/:user_id",
+  auth(UserRole.ADMIN),
+  AdminControllers.suspendUser
+);
+
+export const AdminRoutes = router;

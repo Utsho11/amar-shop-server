@@ -9,8 +9,6 @@ import { UserRole } from "@prisma/client";
 
 const router = express.Router();
 
-router.get("/", UserControllers.getAllUser);
-
 router.patch(
   "/update-user",
   auth(UserRole.ADMIN, UserRole.CUSTOMER, UserRole.VENDOR),

@@ -1,7 +1,7 @@
 import { Request } from "express";
-import { IFile } from "../../interfaces/file";
-import prisma from "../../../shared/prisma";
-import AppError from "../../errors/AppError";
+import { IFile } from "../../../interfaces/file";
+import prisma from "../../../../shared/prisma";
+import AppError from "../../../errors/AppError";
 import httpStatus from "http-status";
 
 interface ICategoryPayload {

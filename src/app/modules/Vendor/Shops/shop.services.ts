@@ -1,6 +1,6 @@
 import { Request } from "express";
-import { IFile } from "../../interfaces/file";
-import prisma from "../../../shared/prisma";
+import { IFile } from "../../../interfaces/file";
+import prisma from "../../../../shared/prisma";
 
 interface IShopPayload {
   name: string;
@@ -30,9 +30,11 @@ const createShopIntoDB = async (req: Request) => {
     };
 
     // Create user in the database
-    const user = await prisma.shop.create({
+    const result = await prisma.shop.create({
       data: shopPayload,
     });
+
+    return result;
   } catch (error) {
     console.error("Error creating Shop:", error);
     throw new Error("Shop creation failed. Please try again.");

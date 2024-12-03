@@ -1,8 +1,8 @@
-import catchAsync from "../../../shared/catchAsync";
-import sendResponse from "../../../shared/sendResponse";
+import catchAsync from "../../../../shared/catchAsync";
+import sendResponse from "../../../../shared/sendResponse";
 import httpStatus from "http-status";
 import { CategoryServices } from "./category.services";
-import { IAuthUser } from "../../interfaces/common";
+import { IAuthUser } from "../../../interfaces/common";
 import { Request, Response } from "express";
 
 const createCategory = catchAsync(async (req, res) => {
