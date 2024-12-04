@@ -24,6 +24,20 @@ router.post(
   ProductControllers.createProduct
 );
 
+router.post(
+  "/duplicate-product/:p_id",
+  auth(UserRole.VENDOR),
+  ProductControllers.duplicateProduct
+);
+
+router.patch(
+  "/update-product/:p_id",
+  auth(UserRole.VENDOR),
+  fileUploader.fields([{ name: "files" }]),
+  parseBody,
+  ProductControllers.updateProduct
+);
+
 router.delete(
   "/delete-product/:p_id",
   auth(UserRole.VENDOR),
