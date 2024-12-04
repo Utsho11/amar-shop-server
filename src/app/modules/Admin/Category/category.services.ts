@@ -83,7 +83,7 @@ const deleteCategoryFromDB = async (category_id: string) => {
       throw new AppError(httpStatus.NOT_FOUND, "Category not found");
     }
 
-    await prisma.category.update({
+    const result = await prisma.category.update({
       where: {
         id: category_id,
       },
@@ -91,9 +91,19 @@ const deleteCategoryFromDB = async (category_id: string) => {
         isDeleted: true,
       },
     });
+    return result;
   } catch (error) {
     console.error("Error deleting Category:", error);
     throw new Error("Category deletion failed. Please try again.");
+  }
+};
+
+const getAllCategoriesFromDB = async () => {
+  try {
+    const results = await prisma.category.findMany();
+    return results;
+  } catch (error) {
+    throw new Error("Error fetching all categories");
   }
 };
 
@@ -101,4 +111,5 @@ export const CategoryServices = {
   createCategoryIntoDB,
   updateCategoryIntoDB,
   deleteCategoryFromDB,
+  getAllCategoriesFromDB,
 };
