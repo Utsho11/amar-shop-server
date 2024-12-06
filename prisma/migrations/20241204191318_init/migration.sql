@@ -28,7 +28,6 @@ CREATE TABLE "users" (
 -- CreateTable
 CREATE TABLE "admins" (
     "id" TEXT NOT NULL,
-    "role" "UserRole" NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "image" TEXT,
@@ -43,12 +42,10 @@ CREATE TABLE "admins" (
 -- CreateTable
 CREATE TABLE "customers" (
     "id" TEXT NOT NULL,
-    "role" "UserRole" NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "image" TEXT,
     "phone" TEXT,
-    "status" "UserStatus" DEFAULT 'ACTIVE',
     "isDeleted" BOOLEAN DEFAULT false,
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3),
@@ -59,12 +56,10 @@ CREATE TABLE "customers" (
 -- CreateTable
 CREATE TABLE "vendors" (
     "id" TEXT NOT NULL,
-    "role" "UserRole" NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "image" TEXT,
     "phone" TEXT,
-    "status" "UserStatus" DEFAULT 'ACTIVE',
     "isDeleted" BOOLEAN DEFAULT false,
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3),

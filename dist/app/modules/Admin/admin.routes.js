@@ -1,0 +1,21 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AdminRoutes = void 0;
+const express_1 = __importDefault(require("express"));
+const auth_1 = __importDefault(require("../../middlewares/auth"));
+const client_1 = require("@prisma/client");
+const admin_controllers_1 = require("./admin.controllers");
+const multer_config_1 = require("../../../config/multer.config");
+const bodyParser_1 = require("../../middlewares/bodyParser");
+const category_controllers_1 = require("./Category/category.controllers");
+const user_controllers_1 = require("../User/user.controllers");
+const router = express_1.default.Router();
+router.get("/users", (0, auth_1.default)(client_1.UserRole.ADMIN), user_controllers_1.UserControllers.getAllUser);
+router.post("/create-category", (0, auth_1.default)(client_1.UserRole.ADMIN), multer_config_1.fileUploader.single("file"), bodyParser_1.parseBody, category_controllers_1.CategoryControllers.createCategory);
+router.patch("/edit-category/:category_id", (0, auth_1.default)(client_1.UserRole.ADMIN), multer_config_1.fileUploader.single("file"), bodyParser_1.parseBody, category_controllers_1.CategoryControllers.updateCategory);
+router.delete("/delete-category/:category_id", (0, auth_1.default)(client_1.UserRole.ADMIN), category_controllers_1.CategoryControllers.deleteCategory);
+router.patch("/suspend-user/:user_id", (0, auth_1.default)(client_1.UserRole.ADMIN), admin_controllers_1.AdminControllers.suspendUser);
+exports.AdminRoutes = router;

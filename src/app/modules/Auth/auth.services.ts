@@ -8,6 +8,7 @@ import { Secret } from "jsonwebtoken";
 import { UserRole, UserStatus } from "@prisma/client";
 import AppError from "../../errors/AppError";
 import httpStatus from "http-status";
+import emailSender from "./emailSender";
 
 interface IUserPayload {
   name: string;
@@ -73,8 +74,6 @@ const createUser = async (req: Request) => {
     if (!user) {
       throw new Error("User creation failed. Please try again.");
     }
-
-    console.log(user);
 
     // Generate tokens
     const accessToken = jwtHelpers.generateToken(
@@ -282,4 +281,8 @@ const resetPassword = async (
 export const AuthServices = {
   createUser,
   loginUser,
+  refreshToken,
+  changePassword,
+  forgotPassword,
+  resetPassword,
 };

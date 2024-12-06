@@ -41,6 +41,23 @@ const createShopIntoDB = async (req: Request) => {
   }
 };
 
+const getMyShopFromDB = async (u_id: string) => {
+  try {
+    const result = await prisma.shop.findFirstOrThrow({
+      where: {
+        vendorEmail: u_id,
+        isDeleted: false,
+      },
+    });
+
+    return result;
+  } catch (error) {
+    console.error("Error fetching Shop:", error);
+    throw new Error("Shop fetched failed. Please try again.");
+  }
+};
+
 export const ShopServices = {
   createShopIntoDB,
+  getMyShopFromDB,
 };

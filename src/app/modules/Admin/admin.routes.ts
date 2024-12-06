@@ -2,7 +2,7 @@ import express from "express";
 import auth from "../../middlewares/auth";
 import { UserRole } from "@prisma/client";
 import { AdminControllers } from "./admin.controllers";
-import { fileUploader } from "../../helpers/fileUploader";
+import { fileUploader } from "../../../config/multer.config";
 import { parseBody } from "../../middlewares/bodyParser";
 import { CategoryControllers } from "./Category/category.controllers";
 import { UserControllers } from "../User/user.controllers";

@@ -54,7 +54,48 @@ const updateUserIntoDB = async (user: IAuthUser, req: Request) => {
   }
 };
 
+const getMyProfileFromDB = async (user: IAuthUser) => {
+  const userInfo = await prisma.user.findUniqueOrThrow({
+    where: {
+      email: user?.email,
+      status: UserStatus.ACTIVE,
+    },
+    select: {
+      id: true,
+      email: true,
+      needPasswordChange: true,
+      role: true,
+      status: true,
+    },
+  });
+
+  let profileInfo;
+
+  if (userInfo.role === UserRole.CUSTOMER) {
+    profileInfo = await prisma.customer.findUnique({
+      where: {
+        email: userInfo.email,
+      },
+    });
+  } else if (userInfo.role === UserRole.ADMIN) {
+    profileInfo = await prisma.admin.findUnique({
+      where: {
+        email: userInfo.email,
+      },
+    });
+  } else if (userInfo.role === UserRole.VENDOR) {
+    profileInfo = await prisma.vendor.findUnique({
+      where: {
+        email: userInfo.email,
+      },
+    });
+  }
+
+  return { ...userInfo, ...profileInfo };
+};
+
 export const UserServices = {
   getAllUsersFromDB,
   updateUserIntoDB,
+  getMyProfileFromDB,
 };

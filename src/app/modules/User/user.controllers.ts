@@ -27,7 +27,21 @@ const updateMyProfie = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getMyProfile = catchAsync(async (req, res) => {
+  const user = req.user;
+
+  const result = await UserServices.getMyProfileFromDB(user as IAuthUser);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "My profile data fetched!",
+    data: result,
+  });
+});
+
 export const UserControllers = {
   getAllUser,
   updateMyProfie,
+  getMyProfile,
 };
