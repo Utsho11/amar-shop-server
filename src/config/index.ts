@@ -18,4 +18,6 @@ export default {
   reset_pass_link: process.env.RESET_PASS_LINK,
   sender_email: process.env.SENDER_EMAIL,
   sender_app_pass: process.env.SENDER_APP_PASS,
+  admin_email: process.env.ADMIN_EMAIL,
+  admin_pass: process.env.ADMIN_PASS,
 };

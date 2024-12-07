@@ -15,6 +15,7 @@ const createShop = catchAsync(async (req, res) => {
 
 const getMyShop = catchAsync(async (req, res) => {
   const u_email = req.user.email;
+
   const result = await ShopServices.getMyShopFromDB(u_email);
   sendResponse(res, {
     statusCode: httpStatus.OK,

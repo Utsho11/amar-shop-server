@@ -6,14 +6,7 @@ import AppError from "../../../errors/AppError";
 import { IImageFiles } from "../../../interfaces/file";
 
 const createProduct = catchAsync(async (req, res) => {
-  if (!req.files) {
-    throw new AppError(400, "Please upload an image");
-  }
-
-  const result = await ProductServices.createProductIntoDB(
-    req.body,
-    req.files as IImageFiles
-  );
+  const result = await ProductServices.createProductIntoDB(req);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -37,7 +30,7 @@ const deleteProduct = catchAsync(async (req, res) => {
 });
 
 const getAllProducts = catchAsync(async (req, res) => {
-  const result = await ProductServices.getAllProductsFromDB();
+  const result = await ProductServices.getAllProductsFromDB(req);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -57,6 +50,8 @@ const getSingleProduct = catchAsync(async (req, res) => {
 });
 
 const updateProduct = catchAsync(async (req, res) => {
+  console.log("file", req.file);
+
   const result = await ProductServices.updateProductIntoDB(
     req.params.p_id,
     req

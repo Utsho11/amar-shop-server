@@ -19,7 +19,7 @@ router.post(
 router.post(
   "/create-product",
   auth(UserRole.VENDOR),
-  fileUploader.fields([{ name: "files" }]),
+  fileUploader.single("file"),
   parseBody,
   ProductControllers.createProduct
 );
@@ -33,7 +33,7 @@ router.post(
 router.patch(
   "/update-product/:p_id",
   auth(UserRole.VENDOR),
-  fileUploader.fields([{ name: "files" }]),
+  fileUploader.single("file"),
   parseBody,
   ProductControllers.updateProduct
 );

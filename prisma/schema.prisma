@@ -34,7 +34,6 @@ model Admin {
   id        String    @id @default(uuid())
   name      String
   email     String    @unique
-  image     String?
   phone     String?
   isDeleted Boolean?  @default(false)
   createdAt DateTime? @default(now())
@@ -115,11 +114,11 @@ model Product {
   shopId         String
   name           String   @db.VarChar(150)
   description    String?  @db.Text
-  price          Decimal  @db.Decimal(10, 2)
+  price          String
   categoryId     String
-  discount       Decimal  @default(0) @db.Decimal(5, 2)
-  inventoryCount Int      @default(0)
-  imageUrls      String[]
+  discount       String
+  inventoryCount String
+  imageUrls      String
   isDeleted      Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -212,7 +211,7 @@ model Follow {
 model Coupon {
   id              String   @id @default(uuid())
   code            String   @unique
-  discountPercent Float
+  discountPercent String
   validFrom       DateTime
   validTo         DateTime
   createdAt       DateTime @default(now())

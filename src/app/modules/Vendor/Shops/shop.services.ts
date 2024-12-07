@@ -41,19 +41,28 @@ const createShopIntoDB = async (req: Request) => {
   }
 };
 
-const getMyShopFromDB = async (u_id: string) => {
+const getMyShopFromDB = async (vendorEmail: string) => {
   try {
-    const result = await prisma.shop.findFirstOrThrow({
+    console.log("Fetching shop for vendor email:", vendorEmail);
+
+    const shop = await prisma.shop.findFirst({
       where: {
-        vendorEmail: u_id,
+        vendorEmail: vendorEmail,
         isDeleted: false,
       },
     });
 
-    return result;
+    if (!shop) {
+      console.warn(`No shop found for vendor email: ${vendorEmail}`);
+    }
+
+    return shop;
   } catch (error) {
-    console.error("Error fetching Shop:", error);
-    throw new Error("Shop fetched failed. Please try again.");
+    console.error(
+      `Error fetching shop for vendor email: ${vendorEmail}`,
+      error
+    );
+    throw new Error("Failed to fetch shop. Please try again later.");
   }
 };
 

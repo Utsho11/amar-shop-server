@@ -3,14 +3,13 @@ import prisma from "../../../../shared/prisma";
 import { Request } from "express";
 
 type IProduct = {
-  shopId: string;
   name: string;
   description?: string;
-  price: number;
+  price: string;
   categoryId: string;
-  discount: number;
-  inventoryCount: number;
-  imageUrls?: string[];
+  discount: string;
+  inventoryCount: string;
+  imageUrls?: string;
 };
 
 type IUpdateProduct = {
@@ -22,10 +21,14 @@ type IUpdateProduct = {
   inventoryCount?: number;
 };
 
-const createProductIntoDB = async (payload: IProduct, images: IImageFiles) => {
+const createProductIntoDB = async (req: Request) => {
   try {
-    const { files } = images;
-    payload.imageUrls = files.map((image) => image.path);
+    const file = req.file as IFile | undefined;
+
+    const payload = req.body;
+    payload.imageUrls = file?.path;
+
+    const u_email = req.user.email;
 
     const isCategoryExist = await prisma.category.findFirstOrThrow({
       where: {
@@ -34,9 +37,9 @@ const createProductIntoDB = async (payload: IProduct, images: IImageFiles) => {
       },
     });
 
-    const isShopExist = await prisma.shop.findFirstOrThrow({
+    const shopId = await prisma.shop.findFirst({
       where: {
-        id: payload.shopId,
+        vendorEmail: u_email,
         isDeleted: false,
       },
     });
@@ -45,9 +48,13 @@ const createProductIntoDB = async (payload: IProduct, images: IImageFiles) => {
       throw new Error("Category not found");
     }
 
-    if (!isShopExist) {
+    if (!shopId) {
       throw new Error("Shop not found");
     }
+
+    payload.shopId = shopId.id;
+
+    console.log(payload);
 
     const result = await prisma.product.create({ data: payload });
 
@@ -60,16 +67,17 @@ const createProductIntoDB = async (payload: IProduct, images: IImageFiles) => {
 
 const updateProductIntoDB = async (p_id: string, req: Request) => {
   try {
-    const images = req.files as IImageFiles;
-
-    const { files } = images;
     const payload = req.body;
+    const file = req.file as IFile | undefined;
 
-    if (files.length > 0) {
-      payload.imageUrls = files.map((image) => image.path);
+    console.log("utsho", file?.path);
+
+    if (file) {
+      payload.imageUrls = file?.path;
+      console.log(payload.imageUrls);
     }
 
-    const isProductExist = await prisma.product.findFirstOrThrow({
+    const isProductExist = await prisma.product.findFirst({
       where: {
         id: p_id,
         isDeleted: false,
@@ -118,10 +126,20 @@ const deleteProductFromDB = async (product_id: string) => {
   }
 };
 
-const getAllProductsFromDB = async () => {
+const getAllProductsFromDB = async (req: Request) => {
+  const v_email = req.user.email;
+  console.log("email", v_email);
+
   try {
+    const shop = await prisma.shop.findFirst({
+      where: {
+        vendorEmail: v_email,
+        isBlacklisted: false,
+      },
+    });
     const products = await prisma.product.findMany({
       where: {
+        shopId: shop?.id,
         isDeleted: false,
       },
     });
