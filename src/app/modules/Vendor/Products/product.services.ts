@@ -131,7 +131,7 @@ const getAllProductsFromDB = async (req: Request) => {
   console.log("email", v_email);
 
   try {
-    const shop = await prisma.shop.findFirst({
+    const shops = await prisma.shop.findMany({
       where: {
         vendorEmail: v_email,
         isBlacklisted: false,
@@ -139,7 +139,9 @@ const getAllProductsFromDB = async (req: Request) => {
     });
     const products = await prisma.product.findMany({
       where: {
-        shopId: shop?.id,
+        shopId: {
+          in: shops.map((shop) => shop.id), // Use an array of shop IDs
+        },
         isDeleted: false,
       },
     });

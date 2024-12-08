@@ -31,6 +31,11 @@ router.delete(
   auth(UserRole.ADMIN),
   CategoryControllers.deleteCategory
 );
+router.delete(
+  "/delete-user/:u_id",
+  auth(UserRole.ADMIN),
+  AdminControllers.deleteUser
+);
 
 router.patch(
   "/suspend-user/:user_id",

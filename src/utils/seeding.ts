@@ -43,6 +43,7 @@ export const seed = async () => {
             name: "Utsho",
             email: createdUser.email, // Linking Admin to User via email
             phone: "01727362718",
+            image: "https://tinyurl.com/2s4brkam",
           },
         });
       });

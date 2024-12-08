@@ -12,6 +12,17 @@ const suspendUser = catchAsync(async (req, res) => {
   });
 });
 
+const deleteUser = catchAsync(async (req, res) => {
+  const result = await AdminServices.deleteUserFromDB(req.params.u_id);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "User deleted successfully",
+  });
+});
+
 export const AdminControllers = {
   suspendUser,
+  deleteUser,
 };

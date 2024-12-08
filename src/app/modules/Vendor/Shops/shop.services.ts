@@ -45,7 +45,7 @@ const getMyShopFromDB = async (vendorEmail: string) => {
   try {
     console.log("Fetching shop for vendor email:", vendorEmail);
 
-    const shop = await prisma.shop.findFirst({
+    const shop = await prisma.shop.findMany({
       where: {
         vendorEmail: vendorEmail,
         isDeleted: false,

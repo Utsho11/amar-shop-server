@@ -1,6 +1,5 @@
 import { Request } from "express";
 import prisma from "../../../shared/prisma";
-import httpStatus from "http-status";
 import { IAuthUser } from "../../interfaces/common";
 import { UserRole, UserStatus } from "@prisma/client";
 import { IFile } from "../../interfaces/file";
@@ -8,6 +7,7 @@ import { IFile } from "../../interfaces/file";
 const getAllUsersFromDB = async () => {
   try {
     const result = await prisma.user.findMany();
+
     return result;
   } catch (error) {
     throw new Error("Failed to fetch users!!!");
