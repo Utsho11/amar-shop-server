@@ -15,13 +15,8 @@ const createCategory = catchAsync(async (req, res) => {
   });
 });
 
-const updateCategory = catchAsync(async (req: Request, res: Response) => {
-  const { category_id } = req.params;
-
-  const result = await CategoryServices.updateCategoryIntoDB(
-    category_id as string,
-    req
-  );
+const updateCategory = catchAsync(async (req, res) => {
+  const result = await CategoryServices.updateCategoryIntoDB(req);
 
   sendResponse(res, {
     statusCode: 200,

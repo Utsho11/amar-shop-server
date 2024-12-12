@@ -21,12 +21,18 @@ type IUpdateProduct = {
   inventoryCount?: number;
 };
 
+interface PaginatedProducts {
+  products: any[];
+  hasMore: boolean;
+  totalProducts: number;
+}
+
 const createProductIntoDB = async (req: Request) => {
   try {
     const file = req.file as IFile | undefined;
 
     const payload = req.body;
-    payload.imageUrls = file?.path;
+    payload.imageUrl = file?.path;
 
     const u_email = req.user.email;
 
@@ -65,21 +71,18 @@ const createProductIntoDB = async (req: Request) => {
   }
 };
 
-const updateProductIntoDB = async (p_id: string, req: Request) => {
+const updateProductIntoDB = async (req: Request) => {
   try {
     const payload = req.body;
     const file = req.file as IFile | undefined;
 
-    console.log("utsho", file?.path);
-
     if (file) {
-      payload.imageUrls = file?.path;
-      console.log(payload.imageUrls);
+      payload.imageUrl = file?.path;
     }
 
     const isProductExist = await prisma.product.findFirst({
       where: {
-        id: p_id,
+        id: payload.id,
         isDeleted: false,
       },
     });
@@ -90,7 +93,7 @@ const updateProductIntoDB = async (p_id: string, req: Request) => {
 
     const result = await prisma.product.update({
       where: {
-        id: p_id,
+        id: payload.id,
       },
       data: payload,
     });
@@ -126,26 +129,72 @@ const deleteProductFromDB = async (product_id: string) => {
   }
 };
 
-const getAllProductsFromDB = async (req: Request) => {
-  const v_email = req.user.email;
-  console.log("email", v_email);
-
+const getAllProductsFromDB = async (
+  req: Request
+): Promise<PaginatedProducts> => {
   try {
-    const shops = await prisma.shop.findMany({
-      where: {
-        vendorEmail: v_email,
-        isBlacklisted: false,
-      },
-    });
+    const { page = 1, limit = 8, category, keyword, sortByPrice } = req.query;
+
+    const pageNumber = Number(page);
+    const pageLimit = Number(limit);
+
+    const where: any = {
+      isDeleted: false,
+    };
+
+    console.log({ sortByPrice });
+
+    // Apply category filter dynamically
+    if (category) {
+      where.category = { name: { equals: category.toString() } };
+    }
+
+    // Apply keyword search filter dynamically
+    if (keyword) {
+      where.OR = [
+        { name: { contains: keyword.toString(), mode: "insensitive" } },
+        { description: { contains: keyword.toString(), mode: "insensitive" } },
+      ];
+    }
+
+    // Sort the products based on price (low to high or high to low)
+    let orderBy: any = {};
+    if (sortByPrice) {
+      if (sortByPrice.toString() === "lowToHigh") {
+        orderBy.price = "asc"; // Low to high
+      } else if (sortByPrice.toString() === "highToLow") {
+        orderBy.price = "desc"; // High to low
+      }
+    }
+
+    // Fetch products from database with sorting
     const products = await prisma.product.findMany({
-      where: {
-        shopId: {
-          in: shops.map((shop) => shop.id), // Use an array of shop IDs
-        },
-        isDeleted: false,
+      where,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        price: true,
+        discount: true,
+        inventoryCount: true,
+        imageUrl: true,
+        shop: { select: { name: true } },
+        category: { select: { name: true } },
       },
+      skip: (pageNumber - 1) * pageLimit,
+      take: pageLimit,
+      orderBy,
     });
-    return products;
+
+    const totalProducts = await prisma.product.count({ where });
+
+    const hasMore = pageNumber * pageLimit < totalProducts;
+
+    return {
+      products,
+      totalProducts,
+      hasMore,
+    };
   } catch (error) {
     throw new Error("Error fetching products: " + error);
   }

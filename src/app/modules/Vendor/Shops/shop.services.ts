@@ -50,6 +50,14 @@ const getMyShopFromDB = async (vendorEmail: string) => {
         vendorEmail: vendorEmail,
         isDeleted: false,
       },
+      select: {
+        id: true,
+        vendorEmail: true,
+        name: true,
+        logoUrl: true,
+        description: true,
+        isBlacklisted: true,
+      },
     });
 
     if (!shop) {
@@ -66,7 +74,41 @@ const getMyShopFromDB = async (vendorEmail: string) => {
   }
 };
 
+const updateShopIntoDB = async (req: Request) => {
+  try {
+    const payload = req.body;
+    const file = req.file as IFile | undefined;
+
+    if (file) {
+      payload.imageUrl = file?.path;
+    }
+
+    const isProductExist = await prisma.shop.findFirst({
+      where: {
+        id: payload.id,
+        isDeleted: false,
+      },
+    });
+
+    if (!isProductExist) {
+      throw new Error("Shop not found");
+    }
+
+    const result = await prisma.shop.update({
+      where: {
+        id: payload.id,
+      },
+      data: payload,
+    });
+
+    return result;
+  } catch (error) {
+    throw new Error("Failed to update shop. Please try again later.");
+  }
+};
+
 export const ShopServices = {
   createShopIntoDB,
   getMyShopFromDB,
+  updateShopIntoDB,
 };

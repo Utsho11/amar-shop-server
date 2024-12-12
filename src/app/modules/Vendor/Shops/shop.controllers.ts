@@ -25,7 +25,18 @@ const getMyShop = catchAsync(async (req, res) => {
   });
 });
 
+const updateShop = catchAsync(async (req, res) => {
+  const result = await ShopServices.updateShopIntoDB(req);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Shop Updated Completed successfuly!",
+    data: result,
+  });
+});
+
 export const ShopControllers = {
   createShop,
   getMyShop,
+  updateShop,
 };

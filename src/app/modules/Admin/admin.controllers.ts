@@ -22,7 +22,29 @@ const deleteUser = catchAsync(async (req, res) => {
   });
 });
 
+const getAllShops = catchAsync(async (req, res) => {
+  const result = await AdminServices.getAllShopsFromDB();
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Shop retrieved successfully",
+    data: result,
+  });
+});
+
+const blockShop = catchAsync(async (req, res) => {
+  const result = await AdminServices.blockShopIntoDB(req.params.shop_id);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Shop blocked successfully",
+  });
+});
+
 export const AdminControllers = {
   suspendUser,
   deleteUser,
+  getAllShops,
+  blockShop,
 };

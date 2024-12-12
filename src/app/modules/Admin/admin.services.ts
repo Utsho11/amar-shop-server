@@ -94,7 +94,63 @@ const deleteUserFromDB = async (id: string) => {
   }
 };
 
+const getAllShopsFromDB = async () => {
+  try {
+    const shops = await prisma.shop.findMany({
+      where: {
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        vendorEmail: true,
+        name: true,
+        logoUrl: true,
+        description: true,
+        isBlacklisted: true,
+      },
+    });
+    return shops;
+  } catch (error) {
+    throw new Error("Failed to fetch shops!!!");
+  }
+};
+
+const blockShopIntoDB = async (shop_id: string) => {
+  try {
+    const isShopExists = await prisma.shop.findUnique({
+      where: {
+        id: shop_id,
+        isDeleted: false,
+      },
+    });
+    if (!isShopExists) {
+      throw new AppError(httpStatus.NOT_FOUND, "Shop not found");
+    }
+
+    let status;
+
+    if (isShopExists.isBlacklisted === false) {
+      status = true;
+    } else {
+      status = false;
+    }
+
+    await prisma.shop.update({
+      where: {
+        id: shop_id,
+      },
+      data: {
+        isBlacklisted: status,
+      },
+    });
+  } catch (error) {
+    throw new Error("Failed to block shop!!!");
+  }
+};
+
 export const AdminServices = {
   suspendUserFromDB,
   deleteUserFromDB,
+  getAllShopsFromDB,
+  blockShopIntoDB,
 };

@@ -20,7 +20,7 @@ router.post(
 );
 
 router.patch(
-  "/edit-category/:category_id",
+  "/edit-category",
   auth(UserRole.ADMIN),
   fileUploader.single("file"),
   parseBody,
@@ -41,6 +41,14 @@ router.patch(
   "/suspend-user/:user_id",
   auth(UserRole.ADMIN),
   AdminControllers.suspendUser
+);
+
+router.get("/all-shops", auth(UserRole.ADMIN), AdminControllers.getAllShops);
+
+router.patch(
+  "/block-shop/:shop_id",
+  auth(UserRole.ADMIN),
+  AdminControllers.blockShop
 );
 
 export const AdminRoutes = router;

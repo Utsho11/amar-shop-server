@@ -6,7 +6,15 @@ import { IFile } from "../../interfaces/file";
 
 const getAllUsersFromDB = async () => {
   try {
-    const result = await prisma.user.findMany();
+    const result = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        isDeleted: true,
+      },
+    });
 
     return result;
   } catch (error) {

@@ -39,11 +39,12 @@ const createCategoryIntoDB = async (req: Request) => {
   }
 };
 
-const updateCategoryIntoDB = async (category_id: string, req: Request) => {
+const updateCategoryIntoDB = async (req: Request) => {
   try {
+    const payload = req.body;
     const isExistCategory = await prisma.category.findFirstOrThrow({
       where: {
-        id: category_id,
+        id: payload.id,
         isDeleted: false,
       },
     });
@@ -58,7 +59,7 @@ const updateCategoryIntoDB = async (category_id: string, req: Request) => {
     }
     const result = await prisma.category.update({
       where: {
-        id: category_id,
+        id: payload.id,
       },
       data: updatedCategory,
     });
@@ -100,7 +101,15 @@ const deleteCategoryFromDB = async (category_id: string) => {
 
 const getAllCategoriesFromDB = async () => {
   try {
-    const results = await prisma.category.findMany();
+    const results = await prisma.category.findMany({
+      select: {
+        id: true,
+        name: true,
+        logoUrl: true,
+        description: true,
+        isDeleted: true,
+      },
+    });
     return results;
   } catch (error) {
     throw new Error("Error fetching all categories");
