@@ -142,8 +142,6 @@ const getAllProductsFromDB = async (
       isDeleted: false,
     };
 
-    console.log({ sortByPrice });
-
     // Apply category filter dynamically
     if (category) {
       where.category = { name: { equals: category.toString() } };
@@ -206,6 +204,17 @@ const getSingleProductFromDB = async (p_id: string) => {
       where: {
         id: p_id,
         isDeleted: false,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        price: true,
+        discount: true,
+        inventoryCount: true,
+        imageUrl: true,
+        shop: { select: { id: true, name: true } },
+        category: { select: { name: true } },
       },
     });
     return product;

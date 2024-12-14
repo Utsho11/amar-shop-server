@@ -20,4 +20,8 @@ export default {
   sender_app_pass: process.env.SENDER_APP_PASS,
   admin_email: process.env.ADMIN_EMAIL,
   admin_pass: process.env.ADMIN_PASS,
+  store_id: process.env.STORE_ID,
+  signature_key: process.env.SIGNATURE_KEY,
+  payment_url: process.env.PAYMENT_URL,
+  search_url: process.env.SEARCH_URL,
 };

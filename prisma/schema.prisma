@@ -56,7 +56,6 @@ model Customer {
   updatedAt DateTime? @updatedAt
   Order     Order[]
   Review    Review[]
-  Cart      Cart[]
   Follow    Follow[]
 
   user User @relation(fields: [email], references: [email])
@@ -127,8 +126,8 @@ model Product {
   // Relations
   shop      Shop        @relation(fields: [shopId], references: [id])
   category  Category    @relation(fields: [categoryId], references: [id])
-  OrderItem OrderItem[]
   Review    Review[]
+  OrderItem OrderItem[]
 
   @@map("products") // Maps this model to the "products" table in the database
 }
@@ -165,6 +164,20 @@ model OrderItem {
   @@map("order_items") // Maps this model to the "order_items" table in the database
 }
 
+model Transaction {
+  id            String        @id @default(uuid())
+  orderId       String
+  transactionId String        @unique
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentStatus PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("transactions") // Maps this model to the "transactions" table in the database
+}
+
 model Review {
   id            String   @id @default(uuid())
   productId     String
@@ -178,22 +191,6 @@ model Review {
   customer Customer @relation(fields: [customerEmail], references: [email])
 
   @@map("reviews") // Maps this model to the "reviews" table in the database
-}
-
-model Cart {
-  id            String   @id @default(uuid())
-  customerEmail String
-  productId     String
-  quantity      Int
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relations
-
-  Customer   Customer? @relation(fields: [customerEmail], references: [id])
-  customerId String?
-
-  @@map("cart") // Maps this model to the "cart" table in the database
 }
 
 model Follow {
@@ -218,20 +215,6 @@ model Coupon {
   createdAt       DateTime @default(now())
 
   @@map("coupons") // Maps this model to the "coupons" table in the database
-}
-
-model Transaction {
-  id            String        @id @default(uuid())
-  orderId       String
-  transactionId String        @unique
-  amount        Decimal       @db.Decimal(10, 2)
-  paymentStatus PaymentStatus @default(PENDING)
-  createdAt     DateTime      @default(now())
-
-  // Relations
-  order Order @relation(fields: [orderId], references: [id])
-
-  @@map("transactions") // Maps this model to the "transactions" table in the database
 }
 
 // Enum for role validation
