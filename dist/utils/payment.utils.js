@@ -27,7 +27,7 @@ const initiatePayment = (customerData) => __awaiter(void 0, void 0, void 0, func
         cus_name: customerData.name,
         cus_email: customerData.email,
         cus_phone: customerData.phone,
-        currency: "BDT",
+        currency: "USD",
         desc: "Merchant Registration Payment",
         cus_add1: "N/A",
         cus_add2: "N/A",
