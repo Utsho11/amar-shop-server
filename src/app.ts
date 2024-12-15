@@ -6,15 +6,16 @@ import router from "./app/routes";
 import notFound from "./app/middlewares/notFound";
 
 const app: Application = express();
-app.use(
-  cors({
-    origin: [
-      "https://amar-shop-server-one.vercel.app",
-      "https://amar-shop-client.vercel.app",
-    ],
-    credentials: true,
-  })
-);
+
+const corsOptions = {
+  origin: [
+    "https://amar-shop-client.vercel.app",
+    "https://amar-shop-server-one.vercel.app/api",
+  ],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 
 app.use(cookieParser());
 
