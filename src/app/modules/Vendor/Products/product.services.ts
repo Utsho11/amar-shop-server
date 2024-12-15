@@ -59,6 +59,8 @@ const createProductIntoDB = async (req: Request) => {
     }
 
     payload.shopId = shopId.id;
+    payload.discount = Number(payload.discount);
+    payload.inventoryCount = Number(payload.inventoryCount);
 
     console.log(payload);
 
@@ -75,6 +77,9 @@ const updateProductIntoDB = async (req: Request) => {
   try {
     const payload = req.body;
     const file = req.file as IFile | undefined;
+
+    payload.discount = Number(payload.discount);
+    payload.inventoryCount = Number(payload.inventoryCount);
 
     if (file) {
       payload.imageUrl = file?.path;
@@ -251,6 +256,46 @@ const duplicateProductFromDB = async (p_id: string) => {
   }
 };
 
+const getFlashSaleProductsFromDB = async () => {
+  const results = await prisma.product.findMany({
+    where: {
+      discount: {
+        gt: 0,
+      },
+      isDeleted: false,
+    },
+  });
+
+  console.log(results);
+
+  return results;
+};
+
+const getReviewsFromDB = async (p_id: string) => {
+  const result = await prisma.review.findMany({
+    where: {
+      productId: p_id,
+    },
+    include: {
+      customer: {
+        select: {
+          name: true,
+          image: true,
+        },
+      },
+    },
+  });
+
+  const simplifiedReviews = result.map((review) => ({
+    rating: review.rating,
+    comment: review.comment,
+    username: review.customer?.name || "Anonymous",
+    image: review.customer?.image || null,
+  }));
+
+  return simplifiedReviews;
+};
+
 export const ProductServices = {
   createProductIntoDB,
   deleteProductFromDB,
@@ -258,4 +303,6 @@ export const ProductServices = {
   getSingleProductFromDB,
   updateProductIntoDB,
   duplicateProductFromDB,
+  getFlashSaleProductsFromDB,
+  getReviewsFromDB,
 };

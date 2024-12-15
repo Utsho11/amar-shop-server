@@ -70,7 +70,6 @@ const createUser = (req) => __awaiter(void 0, void 0, void 0, function* () {
         if (!user) {
             throw new Error("User creation failed. Please try again.");
         }
-        console.log(user);
         // Generate tokens
         const accessToken = jwtHelpers_1.jwtHelpers.generateToken({ id: user.id, email: user.email, role: userData.role }, // Secure token payload
         config_1.default.access_secret, config_1.default.jwt_access_expires_in);
@@ -183,13 +182,14 @@ const forgotPassword = (payload) => __awaiter(void 0, void 0, void 0, function* 
     //console.log(resetPassLink)
 });
 const resetPassword = (token, payload) => __awaiter(void 0, void 0, void 0, function* () {
-    console.log({ token, payload });
+    // console.log({ token, payload });
     const userData = yield prisma_1.default.user.findUniqueOrThrow({
         where: {
-            id: payload.id,
+            id: payload.userId,
             status: client_1.UserStatus.ACTIVE,
         },
     });
+    // console.log(userData);
     const isValidToken = jwtHelpers_1.jwtHelpers.verifyToken(token, config_1.default.reset_pass_secret);
     if (!isValidToken) {
         throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Forbidden!");
@@ -199,7 +199,7 @@ const resetPassword = (token, payload) => __awaiter(void 0, void 0, void 0, func
     // update into database
     yield prisma_1.default.user.update({
         where: {
-            id: payload.id,
+            id: payload.userId,
         },
         data: {
             password,

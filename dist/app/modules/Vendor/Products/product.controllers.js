@@ -17,12 +17,8 @@ const catchAsync_1 = __importDefault(require("../../../../shared/catchAsync"));
 const sendResponse_1 = __importDefault(require("../../../../shared/sendResponse"));
 const http_status_1 = __importDefault(require("http-status"));
 const product_services_1 = require("./product.services");
-const AppError_1 = __importDefault(require("../../../errors/AppError"));
 const createProduct = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    if (!req.files) {
-        throw new AppError_1.default(400, "Please upload an image");
-    }
-    const result = yield product_services_1.ProductServices.createProductIntoDB(req.body, req.files);
+    const result = yield product_services_1.ProductServices.createProductIntoDB(req);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
@@ -41,7 +37,7 @@ const deleteProduct = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, 
     });
 }));
 const getAllProducts = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield product_services_1.ProductServices.getAllProductsFromDB();
+    const result = yield product_services_1.ProductServices.getAllProductsFromDB(req);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
@@ -59,7 +55,7 @@ const getSingleProduct = (0, catchAsync_1.default)((req, res) => __awaiter(void 
     });
 }));
 const updateProduct = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield product_services_1.ProductServices.updateProductIntoDB(req.params.p_id, req);
+    const result = yield product_services_1.ProductServices.updateProductIntoDB(req);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
@@ -76,6 +72,26 @@ const duplicateProduct = (0, catchAsync_1.default)((req, res) => __awaiter(void 
         data: result,
     });
 }));
+const getFlashSaleProducts = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield product_services_1.ProductServices.getFlashSaleProductsFromDB();
+    console.log(result);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "Product fetched successfuly!",
+        data: result,
+    });
+}));
+const getReviews = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { p_id } = req.params;
+    const result = yield product_services_1.ProductServices.getReviewsFromDB(p_id);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "Product fetched successfuly!",
+        data: result,
+    });
+}));
 exports.ProductControllers = {
     createProduct,
     deleteProduct,
@@ -83,4 +99,6 @@ exports.ProductControllers = {
     getSingleProduct,
     updateProduct,
     duplicateProduct,
+    getFlashSaleProducts,
+    getReviews,
 };

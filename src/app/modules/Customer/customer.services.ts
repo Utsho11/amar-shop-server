@@ -1,6 +1,6 @@
 import { Request } from "express";
 import prisma from "../../../shared/prisma";
-import { PaymentStatus, UserStatus } from "@prisma/client";
+import { OrderStatus, PaymentStatus, UserStatus } from "@prisma/client";
 import { initiatePayment, TCustomerData } from "../../../utils/payment.utils";
 
 type TOrderItem = {
@@ -63,11 +63,112 @@ const createOrderIntoDB = async (req: Request) => {
     return res; // Optionally return the created order
   });
 
-  console.log(order);
-
   return order;
+};
+
+const getItemForReviewFromDB = async (req: Request) => {
+  const cus_email = req.user.email;
+  const result = await prisma.orderItem.findMany({
+    where: {
+      isReviewed: false,
+      order: {
+        customerEmail: cus_email,
+        status: OrderStatus.COMPLETED,
+      },
+    },
+    select: {
+      id: true,
+      productId: true,
+      product: {
+        select: {
+          name: true,
+          imageUrl: true,
+        },
+      },
+    },
+  });
+
+  return result;
+};
+
+const addReviewIntoDB = async (req: Request) => {
+  const payload = req.body;
+  const cus_email = req.user.email;
+
+  const reviewData = {
+    productId: payload.productId,
+    customerEmail: cus_email,
+    rating: Number(payload.rating),
+    comment: payload.comment,
+  };
+
+  const result = await prisma.review.create({
+    data: reviewData,
+  });
+
+  if (result.id) {
+    await prisma.orderItem.updateMany({
+      where: {
+        productId: payload.productId,
+        order: {
+          customerEmail: cus_email,
+          status: OrderStatus.COMPLETED,
+        },
+      },
+      data: {
+        isReviewed: true,
+      },
+    });
+  }
+
+  return "Review added successfully";
+};
+
+const getMyOrderHistoryFromDB = async (req: Request) => {
+  const cus_email = req.user.email;
+  const orders = await prisma.orderItem.findMany({
+    where: {
+      order: {
+        customerEmail: cus_email,
+        status: OrderStatus.COMPLETED,
+      },
+    },
+    include: {
+      product: {
+        select: {
+          name: true,
+          imageUrl: true,
+          price: true,
+        },
+      },
+      order: {
+        select: {
+          Transaction: {
+            select: {
+              transactionId: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const structuredOrders = orders.map((item) => ({
+    quantity: item.quantity,
+    productName: item.product.name,
+    productPrice: item.product.price,
+    productImage: item.product.imageUrl,
+    transactionId: item.order.Transaction[0]?.transactionId || null,
+  }));
+
+  console.log(structuredOrders);
+
+  return structuredOrders;
 };
 
 export const CustomerServices = {
   createOrderIntoDB,
+  getItemForReviewFromDB,
+  addReviewIntoDB,
+  getMyOrderHistoryFromDB,
 };

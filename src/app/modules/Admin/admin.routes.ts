@@ -51,4 +51,18 @@ router.patch(
   AdminControllers.blockShop
 );
 
+router.get(
+  "/all-transactions",
+  auth(UserRole.ADMIN),
+  AdminControllers.getAllTransactions
+);
+
+router.post(
+  "/create-coupon",
+  auth(UserRole.ADMIN),
+  AdminControllers.createCoupon
+);
+
+router.post("/check-coupon", AdminControllers.checkCoupon);
+
 export const AdminRoutes = router;

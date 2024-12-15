@@ -35,8 +35,68 @@ const updateShop = catchAsync(async (req, res) => {
   });
 });
 
+const getSingleShop = catchAsync(async (req, res) => {
+  const s_id = req.params.id;
+
+  const result = await ShopServices.getSingleShopFromDB(s_id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Shop Fetched Completed successfuly!",
+    data: result,
+  });
+});
+
+const getProductsByShop = catchAsync(async (req, res) => {
+  const { s_id } = req.params;
+
+  const result = await ShopServices.getProductsByShopFromDB(s_id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Products fetched Completed successfuly!",
+    data: result,
+  });
+});
+
+const followShop = catchAsync(async (req, res) => {
+  const result = await ShopServices.followShop(req);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Followed Successfully!",
+  });
+});
+
+const unfollowShop = catchAsync(async (req, res) => {
+  const result = await ShopServices.unfollowShop(req);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "UnFollowed Successfully!",
+  });
+});
+
+const getFollowers = catchAsync(async (req, res) => {
+  const { s_id } = req.params;
+  const result = await ShopServices.getFollowers(s_id as string);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Follower retrieved Successfully!",
+    data: result,
+  });
+});
 export const ShopControllers = {
   createShop,
   getMyShop,
   updateShop,
+  getSingleShop,
+  getProductsByShop,
+  followShop,
+  unfollowShop,
+  getFollowers,
 };

@@ -17,7 +17,15 @@ const prisma_1 = __importDefault(require("../../../shared/prisma"));
 const client_1 = require("@prisma/client");
 const getAllUsersFromDB = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const result = yield prisma_1.default.user.findMany();
+        const result = yield prisma_1.default.user.findMany({
+            select: {
+                id: true,
+                email: true,
+                role: true,
+                status: true,
+                isDeleted: true,
+            },
+        });
         return result;
     }
     catch (error) {
@@ -61,7 +69,46 @@ const updateUserIntoDB = (user, req) => __awaiter(void 0, void 0, void 0, functi
         throw new Error("Failed to update user!!!");
     }
 });
+const getMyProfileFromDB = (user) => __awaiter(void 0, void 0, void 0, function* () {
+    const userInfo = yield prisma_1.default.user.findUniqueOrThrow({
+        where: {
+            email: user === null || user === void 0 ? void 0 : user.email,
+            status: client_1.UserStatus.ACTIVE,
+        },
+        select: {
+            id: true,
+            email: true,
+            needPasswordChange: true,
+            role: true,
+            status: true,
+        },
+    });
+    let profileInfo;
+    if (userInfo.role === client_1.UserRole.CUSTOMER) {
+        profileInfo = yield prisma_1.default.customer.findUnique({
+            where: {
+                email: userInfo.email,
+            },
+        });
+    }
+    else if (userInfo.role === client_1.UserRole.ADMIN) {
+        profileInfo = yield prisma_1.default.admin.findUnique({
+            where: {
+                email: userInfo.email,
+            },
+        });
+    }
+    else if (userInfo.role === client_1.UserRole.VENDOR) {
+        profileInfo = yield prisma_1.default.vendor.findUnique({
+            where: {
+                email: userInfo.email,
+            },
+        });
+    }
+    return Object.assign(Object.assign({}, userInfo), profileInfo);
+});
 exports.UserServices = {
     getAllUsersFromDB,
     updateUserIntoDB,
+    getMyProfileFromDB,
 };

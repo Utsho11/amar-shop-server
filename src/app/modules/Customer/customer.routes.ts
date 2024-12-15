@@ -11,4 +11,22 @@ router.post(
   CustomerControllers.createOrder
 );
 
+router.post(
+  "/add-review",
+  auth(UserRole.CUSTOMER),
+  CustomerControllers.addReview
+);
+
+router.get(
+  "/orderItemForReview",
+  auth(UserRole.CUSTOMER),
+  CustomerControllers.getItemForReview
+);
+
+router.get(
+  "/myOrderHistory",
+  auth(UserRole.CUSTOMER),
+  CustomerControllers.getMyOrderHistory
+);
+
 export const CustomerRoutes = router;

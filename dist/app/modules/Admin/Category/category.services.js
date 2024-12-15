@@ -41,11 +41,12 @@ const createCategoryIntoDB = (req) => __awaiter(void 0, void 0, void 0, function
         throw new Error("Category creation failed. Please try again.");
     }
 });
-const updateCategoryIntoDB = (category_id, req) => __awaiter(void 0, void 0, void 0, function* () {
+const updateCategoryIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const payload = req.body;
         const isExistCategory = yield prisma_1.default.category.findFirstOrThrow({
             where: {
-                id: category_id,
+                id: payload.id,
                 isDeleted: false,
             },
         });
@@ -59,7 +60,7 @@ const updateCategoryIntoDB = (category_id, req) => __awaiter(void 0, void 0, voi
         }
         const result = yield prisma_1.default.category.update({
             where: {
-                id: category_id,
+                id: payload.id,
             },
             data: updatedCategory,
         });
@@ -98,7 +99,15 @@ const deleteCategoryFromDB = (category_id) => __awaiter(void 0, void 0, void 0, 
 });
 const getAllCategoriesFromDB = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const results = yield prisma_1.default.category.findMany();
+        const results = yield prisma_1.default.category.findMany({
+            select: {
+                id: true,
+                name: true,
+                logoUrl: true,
+                description: true,
+                isDeleted: true,
+            },
+        });
         return results;
     }
     catch (error) {

@@ -106,9 +106,97 @@ const updateShopIntoDB = async (req: Request) => {
     throw new Error("Failed to update shop. Please try again later.");
   }
 };
+const getSingleShopFromDB = async (shopId: string) => {
+  const result = await prisma.shop.findFirst({
+    where: {
+      id: shopId,
+      isDeleted: false, // Additional filter
+    },
+    select: {
+      id: true,
+      vendorEmail: true,
+      name: true,
+      logoUrl: true,
+      description: true,
+    },
+  });
+
+  if (!result) {
+    throw new Error("Shop not found or it has been deleted.");
+  }
+
+  return result;
+};
+
+const getProductsByShopFromDB = async (shopId: string) => {
+  const products = await prisma.product.findMany({
+    where: {
+      shopId: shopId,
+      isDeleted: false,
+    },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      price: true,
+      discount: true,
+      inventoryCount: true,
+      imageUrl: true,
+    },
+  });
+
+  return products;
+};
+
+const followShop = async (req: Request) => {
+  const u_email = req.user.email;
+  const { s_id } = req.params;
+
+  const result = await prisma.follow.create({
+    data: {
+      customerEmail: u_email,
+      shopId: s_id,
+    },
+  });
+};
+
+const unfollowShop = async (req: Request) => {
+  const u_email = req.user.email;
+  const { s_id } = req.params;
+
+  console.log("deleted", s_id);
+
+  const review = await prisma.follow.findFirst({
+    where: {
+      customerEmail: u_email,
+      shopId: s_id,
+    },
+  });
+
+  const result = await prisma.follow.delete({
+    where: {
+      id: review?.id,
+    },
+  });
+};
+
+const getFollowers = async (shopId: string) => {
+  const result = await prisma.follow.findMany({
+    where: {
+      shopId: shopId,
+    },
+  });
+
+  return result;
+};
 
 export const ShopServices = {
   createShopIntoDB,
   getMyShopFromDB,
   updateShopIntoDB,
+  getSingleShopFromDB,
+  getProductsByShopFromDB,
+  followShop,
+  unfollowShop,
+  getFollowers,
 };

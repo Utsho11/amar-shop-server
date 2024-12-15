@@ -114,10 +114,10 @@ model Product {
   shopId         String
   name           String   @db.VarChar(150)
   description    String?  @db.Text
-  price          String
+  price          Decimal  @db.Decimal(10, 2)
   categoryId     String
-  discount       String
-  inventoryCount String
+  discount       Int
+  inventoryCount Int
   imageUrl       String
   isDeleted      Boolean  @default(false)
   createdAt      DateTime @default(now())
@@ -151,11 +151,12 @@ model Order {
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  productId String
-  quantity  Int
-  price     Decimal @db.Decimal(10, 2)
+  id         String  @id @default(uuid())
+  orderId    String
+  productId  String
+  quantity   Int
+  price      Decimal @db.Decimal(10, 2)
+  isReviewed Boolean @default(false)
 
   // Relations
   order   Order   @relation(fields: [orderId], references: [id])
@@ -209,9 +210,7 @@ model Follow {
 model Coupon {
   id              String   @id @default(uuid())
   code            String   @unique
-  discountPercent String
-  validFrom       DateTime
-  validTo         DateTime
+  discountPercent Int
   createdAt       DateTime @default(now())
 
   @@map("coupons") // Maps this model to the "coupons" table in the database

@@ -59,6 +59,12 @@ router.get(
   VendorControllers.getProducts
 );
 
+router.get(
+  "/order-history",
+  auth(UserRole.VENDOR),
+  VendorControllers.getOrderHistory
+);
+
 router.get("/get-my-shop", auth(UserRole.VENDOR), ShopControllers.getMyShop);
 
 export const VendorRoutes = router;

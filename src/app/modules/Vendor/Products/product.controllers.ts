@@ -69,6 +69,31 @@ const duplicateProduct = catchAsync(async (req, res) => {
   });
 });
 
+const getFlashSaleProducts = catchAsync(async (req, res) => {
+  const result = await ProductServices.getFlashSaleProductsFromDB();
+
+  console.log(result);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Product fetched successfuly!",
+    data: result,
+  });
+});
+
+const getReviews = catchAsync(async (req, res) => {
+  const { p_id } = req.params;
+
+  const result = await ProductServices.getReviewsFromDB(p_id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Product fetched successfuly!",
+    data: result,
+  });
+});
 export const ProductControllers = {
   createProduct,
   deleteProduct,
@@ -76,4 +101,6 @@ export const ProductControllers = {
   getSingleProduct,
   updateProduct,
   duplicateProduct,
+  getFlashSaleProducts,
+  getReviews,
 };

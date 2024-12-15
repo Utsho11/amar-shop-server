@@ -101,10 +101,10 @@ CREATE TABLE "products" (
     "shopId" TEXT NOT NULL,
     "name" VARCHAR(150) NOT NULL,
     "description" TEXT,
-    "price" TEXT NOT NULL,
+    "price" DECIMAL(10,2) NOT NULL,
     "categoryId" TEXT NOT NULL,
-    "discount" TEXT NOT NULL,
-    "inventoryCount" TEXT NOT NULL,
+    "discount" INTEGER NOT NULL,
+    "inventoryCount" INTEGER NOT NULL,
     "imageUrl" TEXT NOT NULL,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -134,8 +134,21 @@ CREATE TABLE "order_items" (
     "productId" TEXT NOT NULL,
     "quantity" INTEGER NOT NULL,
     "price" DECIMAL(10,2) NOT NULL,
+    "isReviewed" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "order_items_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "transactions" (
+    "id" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "transactionId" TEXT NOT NULL,
+    "amount" DECIMAL(10,2) NOT NULL,
+    "paymentStatus" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "transactions_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -148,19 +161,6 @@ CREATE TABLE "reviews" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "reviews_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "cart" (
-    "id" TEXT NOT NULL,
-    "customerEmail" TEXT NOT NULL,
-    "productId" TEXT NOT NULL,
-    "quantity" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "customerId" TEXT,
-
-    CONSTRAINT "cart_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -177,24 +177,10 @@ CREATE TABLE "follows" (
 CREATE TABLE "coupons" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
-    "discountPercent" TEXT NOT NULL,
-    "validFrom" TIMESTAMP(3) NOT NULL,
-    "validTo" TIMESTAMP(3) NOT NULL,
+    "discountPercent" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "coupons_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "transactions" (
-    "id" TEXT NOT NULL,
-    "orderId" TEXT NOT NULL,
-    "transactionId" TEXT NOT NULL,
-    "amount" DECIMAL(10,2) NOT NULL,
-    "paymentStatus" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "transactions_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -213,10 +199,10 @@ CREATE UNIQUE INDEX "vendors_email_key" ON "vendors"("email");
 CREATE UNIQUE INDEX "categories_name_key" ON "categories"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "coupons_code_key" ON "coupons"("code");
+CREATE UNIQUE INDEX "transactions_transactionId_key" ON "transactions"("transactionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "transactions_transactionId_key" ON "transactions"("transactionId");
+CREATE UNIQUE INDEX "coupons_code_key" ON "coupons"("code");
 
 -- AddForeignKey
 ALTER TABLE "admins" ADD CONSTRAINT "admins_email_fkey" FOREIGN KEY ("email") REFERENCES "users"("email") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -246,19 +232,16 @@ ALTER TABLE "order_items" ADD CONSTRAINT "order_items_orderId_fkey" FOREIGN KEY 
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "transactions" ADD CONSTRAINT "transactions_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "reviews" ADD CONSTRAINT "reviews_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "reviews" ADD CONSTRAINT "reviews_customerEmail_fkey" FOREIGN KEY ("customerEmail") REFERENCES "customers"("email") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "cart" ADD CONSTRAINT "cart_customerEmail_fkey" FOREIGN KEY ("customerEmail") REFERENCES "customers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "follows" ADD CONSTRAINT "follows_customerEmail_fkey" FOREIGN KEY ("customerEmail") REFERENCES "customers"("email") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "follows" ADD CONSTRAINT "follows_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "shops"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "transactions" ADD CONSTRAINT "transactions_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -24,6 +24,65 @@ const suspendUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, vo
         message: "User suspended successfully",
     });
 }));
+const deleteUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield admin_services_1.AdminServices.deleteUserFromDB(req.params.u_id);
+    (0, sendResponse_1.default)(res, {
+        statusCode: 200,
+        success: true,
+        message: "User deleted successfully",
+    });
+}));
+const getAllShops = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield admin_services_1.AdminServices.getAllShopsFromDB();
+    (0, sendResponse_1.default)(res, {
+        statusCode: 200,
+        success: true,
+        message: "Shop retrieved successfully",
+        data: result,
+    });
+}));
+const blockShop = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield admin_services_1.AdminServices.blockShopIntoDB(req.params.shop_id);
+    (0, sendResponse_1.default)(res, {
+        statusCode: 200,
+        success: true,
+        message: "Shop blocked successfully",
+    });
+}));
+const getAllTransactions = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield admin_services_1.AdminServices.getAllTransactionsFromDB();
+    (0, sendResponse_1.default)(res, {
+        statusCode: 200,
+        success: true,
+        message: "Shop blocked successfully",
+        data: result,
+    });
+}));
+const createCoupon = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield admin_services_1.AdminServices.createCouponFromDB(req);
+    (0, sendResponse_1.default)(res, {
+        statusCode: 200,
+        success: true,
+        message: "Coupon created successfully",
+        data: result,
+    });
+}));
+const checkCoupon = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { code } = req.body;
+    const result = yield admin_services_1.AdminServices.checkCouponFromDB(code);
+    (0, sendResponse_1.default)(res, {
+        statusCode: 200,
+        success: true,
+        message: "Coupon Checked successfully",
+        data: result,
+    });
+}));
 exports.AdminControllers = {
     suspendUser,
+    deleteUser,
+    getAllShops,
+    blockShop,
+    getAllTransactions,
+    createCoupon,
+    checkCoupon,
 };

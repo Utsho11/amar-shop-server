@@ -41,6 +41,139 @@ const createShopIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* ()
         throw new Error("Shop creation failed. Please try again.");
     }
 });
+const getMyShopFromDB = (vendorEmail) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        console.log("Fetching shop for vendor email:", vendorEmail);
+        const shop = yield prisma_1.default.shop.findMany({
+            where: {
+                vendorEmail: vendorEmail,
+                isDeleted: false,
+            },
+            select: {
+                id: true,
+                vendorEmail: true,
+                name: true,
+                logoUrl: true,
+                description: true,
+                isBlacklisted: true,
+            },
+        });
+        if (!shop) {
+            console.warn(`No shop found for vendor email: ${vendorEmail}`);
+        }
+        return shop;
+    }
+    catch (error) {
+        console.error(`Error fetching shop for vendor email: ${vendorEmail}`, error);
+        throw new Error("Failed to fetch shop. Please try again later.");
+    }
+});
+const updateShopIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const payload = req.body;
+        const file = req.file;
+        if (file) {
+            payload.imageUrl = file === null || file === void 0 ? void 0 : file.path;
+        }
+        const isProductExist = yield prisma_1.default.shop.findFirst({
+            where: {
+                id: payload.id,
+                isDeleted: false,
+            },
+        });
+        if (!isProductExist) {
+            throw new Error("Shop not found");
+        }
+        const result = yield prisma_1.default.shop.update({
+            where: {
+                id: payload.id,
+            },
+            data: payload,
+        });
+        return result;
+    }
+    catch (error) {
+        throw new Error("Failed to update shop. Please try again later.");
+    }
+});
+const getSingleShopFromDB = (shopId) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield prisma_1.default.shop.findFirst({
+        where: {
+            id: shopId,
+            isDeleted: false, // Additional filter
+        },
+        select: {
+            id: true,
+            vendorEmail: true,
+            name: true,
+            logoUrl: true,
+            description: true,
+        },
+    });
+    if (!result) {
+        throw new Error("Shop not found or it has been deleted.");
+    }
+    return result;
+});
+const getProductsByShopFromDB = (shopId) => __awaiter(void 0, void 0, void 0, function* () {
+    const products = yield prisma_1.default.product.findMany({
+        where: {
+            shopId: shopId,
+            isDeleted: false,
+        },
+        select: {
+            id: true,
+            name: true,
+            description: true,
+            price: true,
+            discount: true,
+            inventoryCount: true,
+            imageUrl: true,
+        },
+    });
+    return products;
+});
+const followShop = (req) => __awaiter(void 0, void 0, void 0, function* () {
+    const u_email = req.user.email;
+    const { s_id } = req.params;
+    const result = yield prisma_1.default.follow.create({
+        data: {
+            customerEmail: u_email,
+            shopId: s_id,
+        },
+    });
+});
+const unfollowShop = (req) => __awaiter(void 0, void 0, void 0, function* () {
+    const u_email = req.user.email;
+    const { s_id } = req.params;
+    console.log("deleted", s_id);
+    const review = yield prisma_1.default.follow.findFirst({
+        where: {
+            customerEmail: u_email,
+            shopId: s_id,
+        },
+    });
+    const result = yield prisma_1.default.follow.delete({
+        where: {
+            id: review === null || review === void 0 ? void 0 : review.id,
+        },
+    });
+});
+const getFollowers = (shopId) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield prisma_1.default.follow.findMany({
+        where: {
+            shopId: shopId,
+        },
+    });
+    return result;
+});
 exports.ShopServices = {
     createShopIntoDB,
+    getMyShopFromDB,
+    updateShopIntoDB,
+    getSingleShopFromDB,
+    getProductsByShopFromDB,
+    followShop,
+    unfollowShop,
+    getFollowers,
 };

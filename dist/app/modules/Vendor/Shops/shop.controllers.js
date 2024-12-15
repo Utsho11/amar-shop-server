@@ -26,6 +26,78 @@ const createShop = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, voi
         data: result,
     });
 }));
+const getMyShop = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const u_email = req.user.email;
+    const result = yield shop_services_1.ShopServices.getMyShopFromDB(u_email);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "Shop Fetched Completed successfuly!",
+        data: result,
+    });
+}));
+const updateShop = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield shop_services_1.ShopServices.updateShopIntoDB(req);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "Shop Updated Completed successfuly!",
+        data: result,
+    });
+}));
+const getSingleShop = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const s_id = req.params.id;
+    const result = yield shop_services_1.ShopServices.getSingleShopFromDB(s_id);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "Shop Fetched Completed successfuly!",
+        data: result,
+    });
+}));
+const getProductsByShop = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { s_id } = req.params;
+    const result = yield shop_services_1.ShopServices.getProductsByShopFromDB(s_id);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "Products fetched Completed successfuly!",
+        data: result,
+    });
+}));
+const followShop = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield shop_services_1.ShopServices.followShop(req);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "Followed Successfully!",
+    });
+}));
+const unfollowShop = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield shop_services_1.ShopServices.unfollowShop(req);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "UnFollowed Successfully!",
+    });
+}));
+const getFollowers = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { s_id } = req.params;
+    const result = yield shop_services_1.ShopServices.getFollowers(s_id);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "Follower retrieved Successfully!",
+        data: result,
+    });
+}));
 exports.ShopControllers = {
     createShop,
+    getMyShop,
+    updateShop,
+    getSingleShop,
+    getProductsByShop,
+    followShop,
+    unfollowShop,
+    getFollowers,
 };

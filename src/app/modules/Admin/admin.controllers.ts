@@ -42,9 +42,46 @@ const blockShop = catchAsync(async (req, res) => {
   });
 });
 
+const getAllTransactions = catchAsync(async (req, res) => {
+  const result = await AdminServices.getAllTransactionsFromDB();
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Shop blocked successfully",
+    data: result,
+  });
+});
+
+const createCoupon = catchAsync(async (req, res) => {
+  const result = await AdminServices.createCouponFromDB(req);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Coupon created successfully",
+    data: result,
+  });
+});
+
+const checkCoupon = catchAsync(async (req, res) => {
+  const { code } = req.body;
+  const result = await AdminServices.checkCouponFromDB(code);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Coupon Checked successfully",
+    data: result,
+  });
+});
+
 export const AdminControllers = {
   suspendUser,
   deleteUser,
   getAllShops,
   blockShop,
+  getAllTransactions,
+  createCoupon,
+  checkCoupon,
 };

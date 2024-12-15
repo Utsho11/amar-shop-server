@@ -12,7 +12,17 @@ const getProducts = catchAsync(async (req, res) => {
     data: result,
   });
 });
+const getOrderHistory = catchAsync(async (req, res) => {
+  const result = await VendorServices.getOrderHistoryFromDB(req);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Product retrieved successfuly!",
+    data: result,
+  });
+});
 
 export const VendorControllers = {
   getProducts,
+  getOrderHistory,
 };

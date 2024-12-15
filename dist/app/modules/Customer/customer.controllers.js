@@ -12,41 +12,49 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserControllers = void 0;
+exports.CustomerControllers = void 0;
 const catchAsync_1 = __importDefault(require("../../../shared/catchAsync"));
 const sendResponse_1 = __importDefault(require("../../../shared/sendResponse"));
-const user_services_1 = require("./user.services");
-const getAllUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield user_services_1.UserServices.getAllUsersFromDB();
-    (0, sendResponse_1.default)(res, {
-        success: true,
-        statusCode: 200,
-        message: "Users retrieved successfully",
-        data: result,
-    });
-}));
-const updateMyProfie = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const user = req.user;
-    const result = yield user_services_1.UserServices.updateUserIntoDB(user, req);
+const customer_services_1 = require("./customer.services");
+const createOrder = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield customer_services_1.CustomerServices.createOrderIntoDB(req);
     (0, sendResponse_1.default)(res, {
         statusCode: 200,
         success: true,
-        message: "My profile updated!",
+        message: "Order created successfully",
         data: result,
     });
 }));
-const getMyProfile = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const user = req.user;
-    const result = yield user_services_1.UserServices.getMyProfileFromDB(user);
+const addReview = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield customer_services_1.CustomerServices.addReviewIntoDB(req);
     (0, sendResponse_1.default)(res, {
         statusCode: 200,
         success: true,
-        message: "My profile data fetched!",
+        message: "Review posted successfully",
         data: result,
     });
 }));
-exports.UserControllers = {
-    getAllUser,
-    updateMyProfie,
-    getMyProfile,
+const getItemForReview = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield customer_services_1.CustomerServices.getItemForReviewFromDB(req);
+    (0, sendResponse_1.default)(res, {
+        statusCode: 200,
+        success: true,
+        message: "OrderItems fetched successfully",
+        data: result,
+    });
+}));
+const getMyOrderHistory = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield customer_services_1.CustomerServices.getMyOrderHistoryFromDB(req);
+    (0, sendResponse_1.default)(res, {
+        statusCode: 200,
+        success: true,
+        message: "OrderItems fetched successfully",
+        data: result,
+    });
+}));
+exports.CustomerControllers = {
+    createOrder,
+    getItemForReview,
+    addReview,
+    getMyOrderHistory,
 };

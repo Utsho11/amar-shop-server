@@ -148,9 +148,61 @@ const blockShopIntoDB = async (shop_id: string) => {
   }
 };
 
+const getAllTransactionsFromDB = async () => {
+  const result = await prisma.transaction.findMany({
+    select: {
+      orderId: true,
+      transactionId: true,
+      amount: true,
+      paymentStatus: true,
+    },
+  });
+
+  return result;
+};
+
+const createCouponFromDB = async (req: Request) => {
+  const payload = req.body;
+  payload.discount = Number(payload.discount);
+
+  const data = {
+    code: payload.code,
+    discountPercent: payload.discount,
+  };
+
+  const result = await prisma.coupon.create({
+    data: data,
+  });
+
+  return result;
+};
+
+const checkCouponFromDB = async (code: string) => {
+  console.log(code);
+
+  const result = await prisma.coupon.findUniqueOrThrow({
+    where: { code },
+    select: {
+      discountPercent: true,
+    },
+  });
+
+  // Check if a coupon was found
+  if (result) {
+    console.log(result);
+    return result.discountPercent;
+  } else {
+    console.log("Coupon not found.");
+    return null; // Return null if no coupon is found
+  }
+};
+
 export const AdminServices = {
   suspendUserFromDB,
   deleteUserFromDB,
   getAllShopsFromDB,
   blockShopIntoDB,
+  getAllTransactionsFromDB,
+  createCouponFromDB,
+  checkCouponFromDB,
 };

@@ -25,28 +25,34 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProductServices = void 0;
 const prisma_1 = __importDefault(require("../../../../shared/prisma"));
-const createProductIntoDB = (payload, images) => __awaiter(void 0, void 0, void 0, function* () {
+const createProductIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { files } = images;
-        payload.imageUrls = files.map((image) => image.path);
+        const file = req.file;
+        const payload = req.body;
+        payload.imageUrl = file === null || file === void 0 ? void 0 : file.path;
+        const u_email = req.user.email;
         const isCategoryExist = yield prisma_1.default.category.findFirstOrThrow({
             where: {
                 id: payload.categoryId,
                 isDeleted: false,
             },
         });
-        const isShopExist = yield prisma_1.default.shop.findFirstOrThrow({
+        const shopId = yield prisma_1.default.shop.findFirst({
             where: {
-                id: payload.shopId,
+                vendorEmail: u_email,
                 isDeleted: false,
             },
         });
         if (!isCategoryExist) {
             throw new Error("Category not found");
         }
-        if (!isShopExist) {
+        if (!shopId) {
             throw new Error("Shop not found");
         }
+        payload.shopId = shopId.id;
+        payload.discount = Number(payload.discount);
+        payload.inventoryCount = Number(payload.inventoryCount);
+        console.log(payload);
         const result = yield prisma_1.default.product.create({ data: payload });
         return result;
     }
@@ -55,17 +61,18 @@ const createProductIntoDB = (payload, images) => __awaiter(void 0, void 0, void 
         throw new Error("Product creation failed. Please try again.");
     }
 });
-const updateProductIntoDB = (p_id, req) => __awaiter(void 0, void 0, void 0, function* () {
+const updateProductIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const images = req.files;
-        const { files } = images;
         const payload = req.body;
-        if (files.length > 0) {
-            payload.imageUrls = files.map((image) => image.path);
+        const file = req.file;
+        payload.discount = Number(payload.discount);
+        payload.inventoryCount = Number(payload.inventoryCount);
+        if (file) {
+            payload.imageUrl = file === null || file === void 0 ? void 0 : file.path;
         }
-        const isProductExist = yield prisma_1.default.product.findFirstOrThrow({
+        const isProductExist = yield prisma_1.default.product.findFirst({
             where: {
-                id: p_id,
+                id: payload.id,
                 isDeleted: false,
             },
         });
@@ -74,7 +81,7 @@ const updateProductIntoDB = (p_id, req) => __awaiter(void 0, void 0, void 0, fun
         }
         const result = yield prisma_1.default.product.update({
             where: {
-                id: p_id,
+                id: payload.id,
             },
             data: payload,
         });
@@ -109,14 +116,60 @@ const deleteProductFromDB = (product_id) => __awaiter(void 0, void 0, void 0, fu
         throw new Error("Product deletion is failed. Please try again.");
     }
 });
-const getAllProductsFromDB = () => __awaiter(void 0, void 0, void 0, function* () {
+const getAllProductsFromDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const { page = 1, limit = 8, category, keyword, sortByPrice } = req.query;
+        const pageNumber = Number(page);
+        const pageLimit = Number(limit);
+        const where = {
+            isDeleted: false,
+        };
+        // Apply category filter dynamically
+        if (category) {
+            where.category = { name: { equals: category.toString() } };
+        }
+        // Apply keyword search filter dynamically
+        if (keyword) {
+            where.OR = [
+                { name: { contains: keyword.toString(), mode: "insensitive" } },
+                { description: { contains: keyword.toString(), mode: "insensitive" } },
+            ];
+        }
+        // Sort the products based on price (low to high or high to low)
+        let orderBy = {};
+        if (sortByPrice) {
+            if (sortByPrice.toString() === "lowToHigh") {
+                orderBy.price = "asc"; // Low to high
+            }
+            else if (sortByPrice.toString() === "highToLow") {
+                orderBy.price = "desc"; // High to low
+            }
+        }
+        // Fetch products from database with sorting
         const products = yield prisma_1.default.product.findMany({
-            where: {
-                isDeleted: false,
+            where,
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                price: true,
+                discount: true,
+                inventoryCount: true,
+                imageUrl: true,
+                shop: { select: { name: true } },
+                category: { select: { name: true } },
             },
+            skip: (pageNumber - 1) * pageLimit,
+            take: pageLimit,
+            orderBy,
         });
-        return products;
+        const totalProducts = yield prisma_1.default.product.count({ where });
+        const hasMore = pageNumber * pageLimit < totalProducts;
+        return {
+            products,
+            totalProducts,
+            hasMore,
+        };
     }
     catch (error) {
         throw new Error("Error fetching products: " + error);
@@ -128,6 +181,17 @@ const getSingleProductFromDB = (p_id) => __awaiter(void 0, void 0, void 0, funct
             where: {
                 id: p_id,
                 isDeleted: false,
+            },
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                price: true,
+                discount: true,
+                inventoryCount: true,
+                imageUrl: true,
+                shop: { select: { id: true, name: true } },
+                category: { select: { name: true } },
             },
         });
         return product;
@@ -157,6 +221,43 @@ const duplicateProductFromDB = (p_id) => __awaiter(void 0, void 0, void 0, funct
         throw new Error("Duplicated Product Error!!!");
     }
 });
+const getFlashSaleProductsFromDB = () => __awaiter(void 0, void 0, void 0, function* () {
+    const results = yield prisma_1.default.product.findMany({
+        where: {
+            discount: {
+                gt: 0,
+            },
+            isDeleted: false,
+        },
+    });
+    console.log(results);
+    return results;
+});
+const getReviewsFromDB = (p_id) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield prisma_1.default.review.findMany({
+        where: {
+            productId: p_id,
+        },
+        include: {
+            customer: {
+                select: {
+                    name: true,
+                    image: true,
+                },
+            },
+        },
+    });
+    const simplifiedReviews = result.map((review) => {
+        var _a, _b;
+        return ({
+            rating: review.rating,
+            comment: review.comment,
+            username: ((_a = review.customer) === null || _a === void 0 ? void 0 : _a.name) || "Anonymous",
+            image: ((_b = review.customer) === null || _b === void 0 ? void 0 : _b.image) || null,
+        });
+    });
+    return simplifiedReviews;
+});
 exports.ProductServices = {
     createProductIntoDB,
     deleteProductFromDB,
@@ -164,4 +265,6 @@ exports.ProductServices = {
     getSingleProductFromDB,
     updateProductIntoDB,
     duplicateProductFromDB,
+    getFlashSaleProductsFromDB,
+    getReviewsFromDB,
 };
