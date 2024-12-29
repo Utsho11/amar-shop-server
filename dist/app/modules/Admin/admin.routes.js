@@ -19,7 +19,7 @@ router.patch("/edit-category", (0, auth_1.default)(client_1.UserRole.ADMIN), mul
 router.delete("/delete-category/:category_id", (0, auth_1.default)(client_1.UserRole.ADMIN), category_controllers_1.CategoryControllers.deleteCategory);
 router.delete("/delete-user/:u_id", (0, auth_1.default)(client_1.UserRole.ADMIN), admin_controllers_1.AdminControllers.deleteUser);
 router.patch("/suspend-user/:user_id", (0, auth_1.default)(client_1.UserRole.ADMIN), admin_controllers_1.AdminControllers.suspendUser);
-router.get("/all-shops", (0, auth_1.default)(client_1.UserRole.ADMIN), admin_controllers_1.AdminControllers.getAllShops);
+router.get("/all-shops", admin_controllers_1.AdminControllers.getAllShops);
 router.patch("/block-shop/:shop_id", (0, auth_1.default)(client_1.UserRole.ADMIN), admin_controllers_1.AdminControllers.blockShop);
 router.get("/all-transactions", (0, auth_1.default)(client_1.UserRole.ADMIN), admin_controllers_1.AdminControllers.getAllTransactions);
 router.post("/create-coupon", (0, auth_1.default)(client_1.UserRole.ADMIN), admin_controllers_1.AdminControllers.createCoupon);

@@ -46,8 +46,8 @@ const updateShop = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, voi
     });
 }));
 const getSingleShop = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const s_id = req.params.id;
-    const result = yield shop_services_1.ShopServices.getSingleShopFromDB(s_id);
+    const id = req.params.s_id;
+    const result = yield shop_services_1.ShopServices.getSingleShopFromDB(id);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,

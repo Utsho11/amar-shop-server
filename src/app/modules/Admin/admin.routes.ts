@@ -43,7 +43,7 @@ router.patch(
   AdminControllers.suspendUser
 );
 
-router.get("/all-shops", auth(UserRole.ADMIN), AdminControllers.getAllShops);
+router.get("/all-shops", AdminControllers.getAllShops);
 
 router.patch(
   "/block-shop/:shop_id",
