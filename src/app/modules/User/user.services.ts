@@ -4,6 +4,24 @@ import { IAuthUser } from "../../interfaces/common";
 import { UserRole, UserStatus } from "@prisma/client";
 import { IFile } from "../../interfaces/file";
 
+// const getAllUsersFromDB = async () => {
+//   try {
+//     const result = await prisma.user.findMany({
+//       select: {
+//         id: true,
+//         email: true,
+//         role: true,
+//         status: true,
+//         isDeleted: true,
+//       },
+//     });
+
+//     return result;
+//   } catch (error) {
+//     throw new Error("Failed to fetch users!!!");
+//   }
+// };
+
 const getAllUsersFromDB = async () => {
   try {
     const result = await prisma.user.findMany({
@@ -13,10 +31,47 @@ const getAllUsersFromDB = async () => {
         role: true,
         status: true,
         isDeleted: true,
+        Admin: {
+          select: {
+            image: true,
+            name: true,
+          },
+        },
+        Customer: {
+          select: {
+            image: true,
+            name: true,
+          },
+        },
+        Vendor: {
+          select: {
+            image: true,
+            name: true,
+          },
+        },
       },
     });
 
-    return result;
+    // Add a unified `image` field based on the user's role
+    const usersWithImages = result.map((user) => {
+      let image = null;
+      let name = null;
+
+      if (user.role === "ADMIN" && user.Admin) {
+        image = user.Admin.image;
+        name = user.Admin.name;
+      } else if (user.role === "CUSTOMER" && user.Customer) {
+        image = user.Customer.image;
+        name = user.Customer.name;
+      } else if (user.role === "VENDOR" && user.Vendor) {
+        image = user.Vendor.image;
+        name = user.Vendor.name;
+      }
+
+      return { ...user, image, name };
+    });
+
+    return usersWithImages;
   } catch (error) {
     throw new Error("Failed to fetch users!!!");
   }

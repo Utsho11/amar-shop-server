@@ -11,7 +11,7 @@ const corsOptions = {
   origin: [
     "https://amar-shop-client.vercel.app",
     "https://amar-shop-server-one.vercel.app/api",
-    // "http://localhost:5173",
+    "http://localhost:5173",
   ],
   credentials: true,
 };
