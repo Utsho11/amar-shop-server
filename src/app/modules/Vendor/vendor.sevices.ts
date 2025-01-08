@@ -1,5 +1,6 @@
 import { Request } from "express";
 import prisma from "../../../shared/prisma";
+import { create } from "domain";
 
 const getProductsFromDB = async (req: Request) => {
   try {
@@ -66,6 +67,7 @@ const getOrderHistoryFromDB = async (req: Request) => {
             Transaction: {
               select: {
                 transactionId: true,
+                createdAt: true,
               },
             },
           },
@@ -80,6 +82,7 @@ const getOrderHistoryFromDB = async (req: Request) => {
       productImage: item.product.imageUrl,
       productPrice: item.product.price,
       transactionId: item.order.Transaction[0]?.transactionId || null,
+      createdAt: item.order.Transaction[0]?.createdAt || null,
     }));
 
     // console.log(orderItems);

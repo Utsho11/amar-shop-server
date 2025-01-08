@@ -155,6 +155,7 @@ const getAllTransactionsFromDB = async () => {
       transactionId: true,
       amount: true,
       paymentStatus: true,
+      createdAt: true,
     },
   });
 
