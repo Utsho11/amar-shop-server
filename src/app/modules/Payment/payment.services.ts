@@ -10,10 +10,10 @@ const confirmationService = async (transactionId: string, status: string) => {
     throw new Error("Transaction ID is required.");
   }
 
-  console.log("Processing Transaction ID:", transactionId);
+  // console.log("Processing Transaction ID:", transactionId);
 
   const response = await verifyPayment(transactionId);
-  console.log("Payment Verification Response:", response);
+  // console.log("Payment Verification Response:", response);
 
   const successFilePath = resolve(
     __dirname,

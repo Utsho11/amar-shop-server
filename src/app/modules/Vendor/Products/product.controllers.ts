@@ -72,7 +72,7 @@ const duplicateProduct = catchAsync(async (req, res) => {
 const getFlashSaleProducts = catchAsync(async (req, res) => {
   const result = await ProductServices.getFlashSaleProductsFromDB();
 
-  console.log(result);
+  // console.log(result);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

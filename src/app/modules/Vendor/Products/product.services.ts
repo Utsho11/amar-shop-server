@@ -62,7 +62,7 @@ const createProductIntoDB = async (req: Request) => {
     payload.discount = Number(payload.discount);
     payload.inventoryCount = Number(payload.inventoryCount);
 
-    console.log(payload);
+    // console.log(payload);
 
     const result = await prisma.product.create({ data: payload });
 
@@ -249,7 +249,7 @@ const duplicateProductFromDB = async (p_id: string) => {
       },
     });
 
-    console.log("Duplicated Product:", duplicatedProduct);
+    // console.log("Duplicated Product:", duplicatedProduct);
     return duplicatedProduct;
   } catch (error) {
     throw new Error("Duplicated Product Error!!!");
@@ -266,7 +266,7 @@ const getFlashSaleProductsFromDB = async () => {
     },
   });
 
-  console.log(results);
+  // console.log(results);
 
   return results;
 };

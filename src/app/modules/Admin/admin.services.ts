@@ -190,7 +190,7 @@ const checkCouponFromDB = async (code: string) => {
 
   // Check if a coupon was found
   if (result) {
-    console.log(result);
+    // console.log(result);
     return result.discountPercent;
   } else {
     console.log("Coupon not found.");
