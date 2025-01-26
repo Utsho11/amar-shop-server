@@ -23,9 +23,9 @@ const confirmationService = (transactionId, status) => __awaiter(void 0, void 0,
         console.error("Transaction ID is undefined");
         throw new Error("Transaction ID is required.");
     }
-    console.log("Processing Transaction ID:", transactionId);
+    // console.log("Processing Transaction ID:", transactionId);
     const response = yield (0, payment_utils_1.verifyPayment)(transactionId);
-    console.log("Payment Verification Response:", response);
+    // console.log("Payment Verification Response:", response);
     const successFilePath = (0, path_1.resolve)(__dirname, "../../../../public/confirmation.html");
     const failedFilePath = (0, path_1.resolve)(__dirname, "../../../../public/failed.html");
     const updateTransactionAndOrder = (paymentStatus, orderStatus) => __awaiter(void 0, void 0, void 0, function* () {

@@ -76,6 +76,7 @@ const getOrderHistoryFromDB = (req) => __awaiter(void 0, void 0, void 0, functio
                         Transaction: {
                             select: {
                                 transactionId: true,
+                                createdAt: true,
                             },
                         },
                     },
@@ -84,13 +85,14 @@ const getOrderHistoryFromDB = (req) => __awaiter(void 0, void 0, void 0, functio
         });
         // Restructure the output
         const orderItems = rawOrderItems.map((item) => {
-            var _a;
+            var _a, _b;
             return ({
                 quantity: item.quantity,
                 productName: item.product.name,
                 productImage: item.product.imageUrl,
                 productPrice: item.product.price,
                 transactionId: ((_a = item.order.Transaction[0]) === null || _a === void 0 ? void 0 : _a.transactionId) || null,
+                createdAt: ((_b = item.order.Transaction[0]) === null || _b === void 0 ? void 0 : _b.createdAt) || null,
             });
         });
         // console.log(orderItems);
