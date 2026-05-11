@@ -2,14 +2,13 @@
   "name": "amar-shop-server",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "prisma generate && tsc",
-    "start": "node dist/server.js",
-    "postinstall": "prisma generate",
-    "render-build": "prisma migrate deploy && npm run build",
-    "vercel-build": "prisma generate && prisma migrate deploy && tsc"
-  },
+ "scripts": {
+  "dev": "tsx watch src/server.ts",
+  "build": "npx prisma generate && tsc",
+  "start": "node dist/server.js",
+  "postinstall": "npx prisma generate",
+  "render-build": "npx prisma migrate deploy && npm run build"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
