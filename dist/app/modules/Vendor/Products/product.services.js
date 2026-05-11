@@ -27,9 +27,12 @@ exports.ProductServices = void 0;
 const prisma_1 = __importDefault(require("../../../../shared/prisma"));
 const createProductIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const file = req.file;
+        const imgUrls = req.files;
+        const { files } = imgUrls;
+        // console.log(files);
         const payload = req.body;
-        payload.imageUrl = file === null || file === void 0 ? void 0 : file.path;
+        payload.imageUrl =
+            files && files.length > 0 ? files.map((file) => file.path) : [];
         const u_email = req.user.email;
         const isCategoryExist = yield prisma_1.default.category.findFirstOrThrow({
             where: {
@@ -52,7 +55,7 @@ const createProductIntoDB = (req) => __awaiter(void 0, void 0, void 0, function*
         payload.shopId = shopId.id;
         payload.discount = Number(payload.discount);
         payload.inventoryCount = Number(payload.inventoryCount);
-        // console.log(payload);
+        console.log(payload);
         const result = yield prisma_1.default.product.create({ data: payload });
         return result;
     }

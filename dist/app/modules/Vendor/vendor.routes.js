@@ -14,7 +14,7 @@ const multer_config_1 = require("../../../config/multer.config");
 const vendor_controllers_1 = require("./vendor.controllers");
 const router = express_1.default.Router();
 router.post("/create-shop", (0, auth_1.default)(client_1.UserRole.VENDOR), multer_config_1.fileUploader.single("file"), bodyParser_1.parseBody, shop_controllers_1.ShopControllers.createShop);
-router.post("/create-product", (0, auth_1.default)(client_1.UserRole.VENDOR), multer_config_1.fileUploader.single("file"), bodyParser_1.parseBody, product_controllers_1.ProductControllers.createProduct);
+router.post("/create-product", (0, auth_1.default)(client_1.UserRole.VENDOR), multer_config_1.fileUploader.fields([{ name: "files" }]), bodyParser_1.parseBody, product_controllers_1.ProductControllers.createProduct);
 router.post("/duplicate-product/:p_id", (0, auth_1.default)(client_1.UserRole.VENDOR), product_controllers_1.ProductControllers.duplicateProduct);
 router.patch("/update-product", (0, auth_1.default)(client_1.UserRole.VENDOR), multer_config_1.fileUploader.single("file"), bodyParser_1.parseBody, product_controllers_1.ProductControllers.updateProduct);
 router.patch("/update-shop", (0, auth_1.default)(client_1.UserRole.VENDOR), multer_config_1.fileUploader.single("file"), bodyParser_1.parseBody, shop_controllers_1.ShopControllers.updateShop);

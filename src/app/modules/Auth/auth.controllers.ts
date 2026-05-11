@@ -21,8 +21,10 @@ const loginUser = catchAsync(async (req, res) => {
   const { refreshToken, accessToken } = result;
 
   res.cookie("refreshToken", refreshToken, {
-    secure: process.env.NODE_ENV === "production",
     httpOnly: true,
+    secure: true,
+    sameSite: "none",          
+    maxAge: 7 * 24 * 60 * 60 * 1000
   });
 
   sendResponse(res, {
@@ -38,15 +40,18 @@ const refreshToken = catchAsync(async (req, res) => {
 
   const result = await AuthServices.refreshToken(refreshToken);
 
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: "Access token genereated successfully!",
-    data: result,
-    // data: {
-    //     accessToken: result.accessToken,
-    //     needPasswordChange: result.needPasswordChange
-    // }
+    message: "Access token generated successfully!",
+    data: result, 
   });
 });
 

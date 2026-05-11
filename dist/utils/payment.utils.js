@@ -16,26 +16,32 @@ exports.verifyPayment = exports.initiatePayment = void 0;
 const axios_1 = __importDefault(require("axios"));
 const config_1 = __importDefault(require("../config"));
 const initiatePayment = (customerData) => __awaiter(void 0, void 0, void 0, function* () {
-    const response = yield axios_1.default.post(config_1.default.payment_url, {
-        store_id: config_1.default.store_id,
-        signature_key: config_1.default.signature_key,
-        tran_id: customerData.transactionId,
-        success_url: `https://amar-shop-server-lilac.vercel.app/api/payment/confirmation?transactionId=${customerData.transactionId}&status=success`,
-        fail_url: `https://amar-shop-server-lilac.vercel.app/api/payment/confirmation?transactionId=${customerData.transactionId}&status=failed`,
-        cancel_url: "https://amar-shop-client.vercel.app/",
-        amount: customerData.totalAmount,
-        cus_name: customerData.name,
-        cus_email: customerData.email,
-        cus_phone: customerData.phone,
-        currency: "USD",
-        desc: "Merchant Registration Payment",
-        cus_add1: "N/A",
-        cus_add2: "N/A",
-        cus_city: "Dhaka",
-        cus_state: "Dhaka",
-        cus_postcode: "N/A",
-        cus_country: "Bangladesh",
-        type: "json",
+    const payload = new URLSearchParams();
+    payload.append("store_id", "mycom68879f5a838b7");
+    payload.append("store_passwd", "mycom68879f5a838b7@ssl");
+    payload.append("total_amount", String(customerData.totalAmount));
+    payload.append("currency", "BDT");
+    payload.append("tran_id", customerData.transactionId);
+    payload.append("success_url", `https://amar-shop-server-gules.vercel.app/api/payment/confirmation?transactionId=${customerData.transactionId}&status=success`);
+    payload.append("fail_url", `https://amar-shop-server-gules.vercel.app/api/payment/confirmation?transactionId=${customerData.transactionId}&status=failed`);
+    payload.append("cancel_url", "https://amar-shop-client.vercel.app/payment-cancel");
+    payload.append("ipn_url", "https://amar-shop-server-gules.vercel.app/api/payment/ipn");
+    payload.append("cus_name", customerData.name);
+    payload.append("cus_email", customerData.email);
+    payload.append("cus_phone", customerData.phone);
+    payload.append("cus_add1", "N/A");
+    payload.append("cus_city", "Dhaka");
+    payload.append("cus_postcode", "1000");
+    payload.append("cus_country", "Bangladesh");
+    payload.append("shipping_method", "NO");
+    payload.append("product_name", "AmarShop Order");
+    payload.append("product_category", "Ecommerce");
+    payload.append("product_profile", "general");
+    payload.append("type", "json");
+    const response = yield axios_1.default.post(config_1.default.payment_url, payload, {
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
     });
     return response.data;
 });

@@ -118,7 +118,7 @@ model Product {
   categoryId     String
   discount       Int
   inventoryCount Int
-  imageUrl       String
+  imageUrl       String[]
   isDeleted      Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

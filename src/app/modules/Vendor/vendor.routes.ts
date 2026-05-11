@@ -14,21 +14,21 @@ router.post(
   auth(UserRole.VENDOR),
   fileUploader.single("file"),
   parseBody,
-  ShopControllers.createShop
+  ShopControllers.createShop,
 );
 
 router.post(
   "/create-product",
   auth(UserRole.VENDOR),
-  fileUploader.single("file"),
+  fileUploader.fields([{ name: "files" }]),
   parseBody,
-  ProductControllers.createProduct
+  ProductControllers.createProduct,
 );
 
 router.post(
   "/duplicate-product/:p_id",
   auth(UserRole.VENDOR),
-  ProductControllers.duplicateProduct
+  ProductControllers.duplicateProduct,
 );
 
 router.patch(
@@ -36,7 +36,7 @@ router.patch(
   auth(UserRole.VENDOR),
   fileUploader.single("file"),
   parseBody,
-  ProductControllers.updateProduct
+  ProductControllers.updateProduct,
 );
 
 router.patch(
@@ -44,25 +44,25 @@ router.patch(
   auth(UserRole.VENDOR),
   fileUploader.single("file"),
   parseBody,
-  ShopControllers.updateShop
+  ShopControllers.updateShop,
 );
 
 router.delete(
   "/delete-product/:p_id",
   auth(UserRole.VENDOR),
-  ProductControllers.deleteProduct
+  ProductControllers.deleteProduct,
 );
 
 router.get(
   "/get-products",
   auth(UserRole.VENDOR),
-  VendorControllers.getProducts
+  VendorControllers.getProducts,
 );
 
 router.get(
   "/order-history",
   auth(UserRole.VENDOR),
-  VendorControllers.getOrderHistory
+  VendorControllers.getOrderHistory,
 );
 
 router.get("/get-my-shop", auth(UserRole.VENDOR), ShopControllers.getMyShop);

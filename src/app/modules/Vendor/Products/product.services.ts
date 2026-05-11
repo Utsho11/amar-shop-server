@@ -1,6 +1,7 @@
 import { IFile, IImageFiles } from "../../../interfaces/file";
 import prisma from "../../../../shared/prisma";
 import { Request } from "express";
+import type { TImageFiles } from "../../../interfaces/image.interface";
 
 type IProduct = {
   name: string;
@@ -9,7 +10,7 @@ type IProduct = {
   categoryId: string;
   discount: string;
   inventoryCount: string;
-  imageUrls?: string;
+  imageUrls?: string[];
 };
 
 type IUpdateProduct = {
@@ -29,10 +30,15 @@ interface PaginatedProducts {
 
 const createProductIntoDB = async (req: Request) => {
   try {
-    const file = req.file as IFile | undefined;
+  const imgUrls = req.files;
+  const { files } = imgUrls as TImageFiles;
+
+
+    // console.log(files);
 
     const payload = req.body;
-    payload.imageUrl = file?.path;
+    payload.imageUrl =
+      files && files.length > 0 ? files.map((file) => file.path) : [];
 
     const u_email = req.user.email;
 
@@ -62,7 +68,7 @@ const createProductIntoDB = async (req: Request) => {
     payload.discount = Number(payload.discount);
     payload.inventoryCount = Number(payload.inventoryCount);
 
-    // console.log(payload);
+    console.log(payload);
 
     const result = await prisma.product.create({ data: payload });
 
@@ -135,7 +141,7 @@ const deleteProductFromDB = async (product_id: string) => {
 };
 
 const getAllProductsFromDB = async (
-  req: Request
+  req: Request,
 ): Promise<PaginatedProducts> => {
   try {
     const { page = 1, limit = 8, category, keyword, sortByPrice } = req.query;

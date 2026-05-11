@@ -105,7 +105,7 @@ CREATE TABLE "products" (
     "categoryId" TEXT NOT NULL,
     "discount" INTEGER NOT NULL,
     "inventoryCount" INTEGER NOT NULL,
-    "imageUrl" TEXT NOT NULL,
+    "imageUrl" TEXT[],
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

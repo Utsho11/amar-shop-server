@@ -8,8 +8,10 @@ const removeExtension = (filename: string) => {
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinaryUpload,
-  params: {
-    public_id: (_req, file) =>
+  params: async (req, file) => ({
+    folder: "AmarShop",
+
+    public_id:
       Math.random().toString(36).substring(2) +
       "-" +
       Date.now() +
@@ -17,6 +19,6 @@ const storage = new CloudinaryStorage({
       file.fieldname +
       "-" +
       removeExtension(file.originalname),
-  },
+  }),
 });
 export const fileUploader = multer({ storage: storage });

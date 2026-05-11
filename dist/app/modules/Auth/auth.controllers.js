@@ -32,8 +32,10 @@ const loginUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void
     const result = yield auth_services_1.AuthServices.loginUser(payload);
     const { refreshToken, accessToken } = result;
     res.cookie("refreshToken", refreshToken, {
-        secure: process.env.NODE_ENV === "production",
         httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        maxAge: 7 * 24 * 60 * 60 * 1000
     });
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
@@ -45,15 +47,17 @@ const loginUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void
 const refreshToken = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { refreshToken } = req.cookies;
     const result = yield auth_services_1.AuthServices.refreshToken(refreshToken);
+    res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
-        message: "Access token genereated successfully!",
+        message: "Access token generated successfully!",
         data: result,
-        // data: {
-        //     accessToken: result.accessToken,
-        //     needPasswordChange: result.needPasswordChange
-        // }
     });
 }));
 const changePassword = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {

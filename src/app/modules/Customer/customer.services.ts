@@ -35,8 +35,8 @@ const createOrderIntoDB = async (req: Request) => {
             orderId: orderData.id,
             ...orderItem,
           },
-        })
-      )
+        }),
+      ),
     );
 
     const tranxData = {
