@@ -253,9 +253,72 @@ const getMyOrderHistoryFromDB = async (req: Request) => {
   return structuredOrders;
 };
 
+const toggleWishlistIntoDB = async (req: Request) => {
+  const { productId } = req.body;
+  const customerEmail = req.user.email;
+
+  if (!productId) {
+    throw new Error("Product ID is required.");
+  }
+
+  const existing = await prisma.wishlist.findUnique({
+    where: {
+      customerEmail_productId: {
+        customerEmail,
+        productId,
+      },
+    },
+  });
+
+  if (existing) {
+    await prisma.wishlist.delete({
+      where: {
+        id: existing.id,
+      },
+    });
+    return { isWishlisted: false, message: "Product removed from wishlist." };
+  } else {
+    await prisma.wishlist.create({
+      data: {
+        customerEmail,
+        productId,
+      },
+    });
+    return { isWishlisted: true, message: "Product added to wishlist." };
+  }
+};
+
+const getMyWishlistFromDB = async (req: Request) => {
+  const customerEmail = req.user.email;
+
+  const wishlist = await prisma.wishlist.findMany({
+    where: {
+      customerEmail,
+      product: {
+        isDeleted: false,
+      },
+    },
+    include: {
+      product: {
+        include: {
+          category: { select: { name: true } },
+          shop: { select: { id: true, name: true } },
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return wishlist.map((item) => item.product);
+};
+
 export const CustomerServices = {
   createOrderIntoDB,
   getItemForReviewFromDB,
   addReviewIntoDB,
   getMyOrderHistoryFromDB,
+  toggleWishlistIntoDB,
+  getMyWishlistFromDB,
 };

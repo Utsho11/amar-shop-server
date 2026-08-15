@@ -46,17 +46,18 @@ model Admin {
 }
 
 model Customer {
-  id        String    @id @default(uuid())
+  id        String     @id @default(uuid())
   name      String
-  email     String    @unique
+  email     String     @unique
   image     String?
   phone     String?
-  isDeleted Boolean?  @default(false)
-  createdAt DateTime? @default(now())
-  updatedAt DateTime? @updatedAt
+  isDeleted Boolean?   @default(false)
+  createdAt DateTime?  @default(now())
+  updatedAt DateTime?  @updatedAt
   Order     Order[]
   Review    Review[]
   Follow    Follow[]
+  Wishlist  Wishlist[]
 
   user User @relation(fields: [email], references: [email])
 
@@ -110,28 +111,45 @@ model Category {
 }
 
 model Product {
-  id             String   @id @default(uuid())
+  id             String      @id @default(uuid())
   shopId         String
-  name           String   @db.VarChar(150)
-  description    String?  @db.Text
-  price          Decimal  @db.Decimal(10, 2)
+  name           String      @db.VarChar(150)
+  description    String?     @db.Text
+  price          Decimal     @db.Decimal(10, 2)
   categoryId     String
   discount       Int
   inventoryCount Int
   imageUrl       String[]
-  isDeleted      Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  isDeleted      Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   // Relations
   shop      Shop        @relation(fields: [shopId], references: [id])
   category  Category    @relation(fields: [categoryId], references: [id])
   Review    Review[]
   OrderItem OrderItem[]
+  Wishlist  Wishlist[]
 
   @@index([categoryId])
   @@index([shopId])
   @@map("products") // Maps this model to the "products" table in the database
+}
+
+model Wishlist {
+  id            String   @id @default(uuid())
+  customerEmail String
+  productId     String
+  createdAt     DateTime @default(now())
+
+  // Relations
+  customer Customer @relation(fields: [customerEmail], references: [email])
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@unique([customerEmail, productId])
+  @@index([customerEmail])
+  @@index([productId])
+  @@map("wishlists")
 }
 
 model Order {

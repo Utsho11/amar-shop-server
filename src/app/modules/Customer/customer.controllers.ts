@@ -37,13 +37,36 @@ const getMyOrderHistory = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "OrderItems fetched successfully",
+    message: "Order items fetched successfully",
     data: result,
   });
 });
+
+const toggleWishlist = catchAsync(async (req, res) => {
+  const result = await CustomerServices.toggleWishlistIntoDB(req);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: result.message,
+    data: result,
+  });
+});
+
+const getMyWishlist = catchAsync(async (req, res) => {
+  const result = await CustomerServices.getMyWishlistFromDB(req);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Wishlist fetched successfully",
+    data: result,
+  });
+});
+
 export const CustomerControllers = {
   createOrder,
   getItemForReview,
   addReview,
   getMyOrderHistory,
+  toggleWishlist,
+  getMyWishlist,
 };

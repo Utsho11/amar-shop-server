@@ -148,35 +148,76 @@ const getAllProductsFromDB = async (
   req: Request,
 ): Promise<PaginatedProducts> => {
   try {
-    const { page = 1, limit = 8, category, keyword, sortByPrice } = req.query;
+    const {
+      page = 1,
+      limit = 8,
+      category,
+      keyword,
+      sortByPrice,
+      sortBy,
+      minPrice,
+      maxPrice,
+      inStock,
+    } = req.query;
 
-    const pageNumber = Number(page);
-    const pageLimit = Number(limit);
+    const pageNumber = Number(page) || 1;
+    const pageLimit = Number(limit) || 8;
 
     const where: any = {
       isDeleted: false,
     };
 
-    // Apply category filter dynamically
-    if (category) {
-      where.category = { name: { equals: category.toString() } };
-    }
-
-    // Apply keyword search filter dynamically
-    if (keyword) {
+    // Apply category filter dynamically (supports name or ID)
+    if (category && category !== "all" && category !== "All") {
       where.OR = [
-        { name: { contains: keyword.toString(), mode: "insensitive" } },
-        { description: { contains: keyword.toString(), mode: "insensitive" } },
+        { category: { name: { equals: category.toString(), mode: "insensitive" } } },
+        { categoryId: category.toString() },
       ];
     }
 
-    // Sort the products based on price (low to high or high to low)
-    let orderBy: any = {};
-    if (sortByPrice) {
-      if (sortByPrice.toString() === "lowToHigh") {
-        orderBy.price = "asc"; // Low to high
-      } else if (sortByPrice.toString() === "highToLow") {
-        orderBy.price = "desc"; // High to low
+    // Apply keyword search filter dynamically
+    if (keyword && keyword.toString().trim()) {
+      const kw = keyword.toString().trim();
+      where.AND = where.AND || [];
+      where.AND.push({
+        OR: [
+          { name: { contains: kw, mode: "insensitive" } },
+          { description: { contains: kw, mode: "insensitive" } },
+          { category: { name: { contains: kw, mode: "insensitive" } } },
+        ],
+      });
+    }
+
+    // Price range filters
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      where.price = {};
+      if (minPrice !== undefined && minPrice !== "") {
+        where.price.gte = Number(minPrice);
+      }
+      if (maxPrice !== undefined && maxPrice !== "") {
+        where.price.lte = Number(maxPrice);
+      }
+    }
+
+    // In stock filter
+    if (inStock === "true" || inStock === "1") {
+      where.inventoryCount = { gt: 0 };
+    }
+
+    // Sort order
+    let orderBy: any = { createdAt: "desc" };
+    const sortParam = sortBy || sortByPrice;
+
+    if (sortParam) {
+      const s = sortParam.toString();
+      if (s === "lowToHigh" || s === "priceAsc") {
+        orderBy = { price: "asc" };
+      } else if (s === "highToLow" || s === "priceDesc") {
+        orderBy = { price: "desc" };
+      } else if (s === "discount") {
+        orderBy = { discount: "desc" };
+      } else if (s === "newest") {
+        orderBy = { createdAt: "desc" };
       }
     }
 
@@ -191,8 +232,8 @@ const getAllProductsFromDB = async (
         discount: true,
         inventoryCount: true,
         imageUrl: true,
-        shop: { select: { name: true } },
-        category: { select: { name: true } },
+        shop: { select: { id: true, name: true } },
+        category: { select: { id: true, name: true } },
       },
       skip: (pageNumber - 1) * pageLimit,
       take: pageLimit,

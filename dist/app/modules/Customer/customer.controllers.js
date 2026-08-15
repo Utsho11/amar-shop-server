@@ -48,7 +48,25 @@ const getMyOrderHistory = (0, catchAsync_1.default)((req, res) => __awaiter(void
     (0, sendResponse_1.default)(res, {
         statusCode: 200,
         success: true,
-        message: "OrderItems fetched successfully",
+        message: "Order items fetched successfully",
+        data: result,
+    });
+}));
+const toggleWishlist = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield customer_services_1.CustomerServices.toggleWishlistIntoDB(req);
+    (0, sendResponse_1.default)(res, {
+        statusCode: 200,
+        success: true,
+        message: result.message,
+        data: result,
+    });
+}));
+const getMyWishlist = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield customer_services_1.CustomerServices.getMyWishlistFromDB(req);
+    (0, sendResponse_1.default)(res, {
+        statusCode: 200,
+        success: true,
+        message: "Wishlist fetched successfully",
         data: result,
     });
 }));
@@ -57,4 +75,6 @@ exports.CustomerControllers = {
     getItemForReview,
     addReview,
     getMyOrderHistory,
+    toggleWishlist,
+    getMyWishlist,
 };

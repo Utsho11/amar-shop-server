@@ -237,9 +237,66 @@ const getMyOrderHistoryFromDB = (req) => __awaiter(void 0, void 0, void 0, funct
     });
     return structuredOrders;
 });
+const toggleWishlistIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
+    const { productId } = req.body;
+    const customerEmail = req.user.email;
+    if (!productId) {
+        throw new Error("Product ID is required.");
+    }
+    const existing = yield prisma_1.default.wishlist.findUnique({
+        where: {
+            customerEmail_productId: {
+                customerEmail,
+                productId,
+            },
+        },
+    });
+    if (existing) {
+        yield prisma_1.default.wishlist.delete({
+            where: {
+                id: existing.id,
+            },
+        });
+        return { isWishlisted: false, message: "Product removed from wishlist." };
+    }
+    else {
+        yield prisma_1.default.wishlist.create({
+            data: {
+                customerEmail,
+                productId,
+            },
+        });
+        return { isWishlisted: true, message: "Product added to wishlist." };
+    }
+});
+const getMyWishlistFromDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
+    const customerEmail = req.user.email;
+    const wishlist = yield prisma_1.default.wishlist.findMany({
+        where: {
+            customerEmail,
+            product: {
+                isDeleted: false,
+            },
+        },
+        include: {
+            product: {
+                include: {
+                    category: { select: { name: true } },
+                    shop: { select: { id: true, name: true } },
+                },
+            },
+        },
+        orderBy: {
+            createdAt: "desc",
+        },
+    });
+    return wishlist.map((item) => item.product);
+});
 exports.CustomerServices = {
     createOrderIntoDB,
     getItemForReviewFromDB,
     addReviewIntoDB,
     getMyOrderHistoryFromDB,
+    toggleWishlistIntoDB,
+    getMyWishlistFromDB,
 };

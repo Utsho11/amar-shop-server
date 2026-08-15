@@ -29,4 +29,16 @@ router.get(
   CustomerControllers.getMyOrderHistory
 );
 
+router.post(
+  "/wishlist/toggle",
+  auth(UserRole.CUSTOMER),
+  CustomerControllers.toggleWishlist
+);
+
+router.get(
+  "/wishlist",
+  auth(UserRole.CUSTOMER),
+  CustomerControllers.getMyWishlist
+);
+
 export const CustomerRoutes = router;

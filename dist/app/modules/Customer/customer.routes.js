@@ -13,4 +13,6 @@ router.post("/checkout", (0, auth_1.default)(client_1.UserRole.CUSTOMER), custom
 router.post("/add-review", (0, auth_1.default)(client_1.UserRole.CUSTOMER), customer_controllers_1.CustomerControllers.addReview);
 router.get("/orderItemForReview", (0, auth_1.default)(client_1.UserRole.CUSTOMER), customer_controllers_1.CustomerControllers.getItemForReview);
 router.get("/myOrderHistory", (0, auth_1.default)(client_1.UserRole.CUSTOMER), customer_controllers_1.CustomerControllers.getMyOrderHistory);
+router.post("/wishlist/toggle", (0, auth_1.default)(client_1.UserRole.CUSTOMER), customer_controllers_1.CustomerControllers.toggleWishlist);
+router.get("/wishlist", (0, auth_1.default)(client_1.UserRole.CUSTOMER), customer_controllers_1.CustomerControllers.getMyWishlist);
 exports.CustomerRoutes = router;
