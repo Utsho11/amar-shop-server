@@ -21,7 +21,10 @@ export default {
   admin_email: process.env.ADMIN_EMAIL,
   admin_pass: process.env.ADMIN_PASS,
   store_id: process.env.STORE_ID,
+  store_passwd: process.env.STORE_PASSWD || process.env.SIGNATURE_KEY,
   signature_key: process.env.SIGNATURE_KEY,
   payment_url: process.env.PAYMENT_URL,
   search_url: process.env.SEARCH_URL,
+  server_base_url: process.env.SERVER_BASE_URL || "http://localhost:5000",
+  client_base_url: process.env.CLIENT_BASE_URL || "http://localhost:5173",
 };

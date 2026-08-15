@@ -1,24 +1,29 @@
-import express, { Application, NextFunction, Request, Response } from "express";
+import express, { Application } from "express";
 import cors from "cors";
 import globalErrorHandler from "./app/middlewares/globalErrorHandler";
 import cookieParser from "cookie-parser";
 import router from "./app/routes";
 import notFound from "./app/middlewares/notFound";
 import prisma from "./shared/prisma";
-import * as cron from 'node-cron'
+
 const app: Application = express();
 
 const allowedOrigins = [
   "https://amar-shop-client.vercel.app",
   "https://amar-shop-server-gules.vercel.app",
   "https://sandbox.sslcommerz.com",
-  "http://localhost:5173",
+  "https://securepay.sslcommerz.com"
 ];
 
-const corsOptions = {
-  origin(origin: string | undefined, callback: any) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, origin || true);
+const corsOptions: cors.CorsOptions = {
+  origin: (origin: string | undefined, callback: any) => {
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      origin.includes("sslcommerz.com") ||
+      process.env.NODE_ENV !== "production"
+    ) {
+      callback(null, true);
     } else {
       callback(new Error(`Not allowed by CORS: ${origin}`));
     }
@@ -41,15 +46,7 @@ app.get("/", (req, res) => {
 
 app.use("/api", router);
 
-cron.schedule("* 4 * * * *", async () => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
 
-    console.log("Neon DB pinged");
-  } catch (error) {
-    console.error(error);
-  }
-});
 
 
 app.use(notFound);

@@ -16,9 +16,12 @@ exports.PaymentController = void 0;
 const catchAsync_1 = __importDefault(require("../../../shared/catchAsync"));
 const payment_services_1 = require("./payment.services");
 const confirmationController = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { transactionId, status } = req.query;
-    const response = yield payment_services_1.PaymentService.confirmationService(transactionId, status);
-    res.send(response);
+    const transactionId = (req.query.transactionId || req.body.tran_id);
+    const status = (req.query.status || req.body.status);
+    const valId = (req.body.val_id || req.query.val_id);
+    const result = yield payment_services_1.PaymentService.confirmationService(transactionId, status, valId);
+    res.setHeader("Content-Type", "text/html");
+    res.status(200).send(result.html);
 }));
 exports.PaymentController = {
     confirmationController,

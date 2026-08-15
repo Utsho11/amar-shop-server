@@ -14,12 +14,15 @@ const allowedOrigins = [
     "https://amar-shop-client.vercel.app",
     "https://amar-shop-server-gules.vercel.app",
     "https://sandbox.sslcommerz.com",
-    "http://localhost:5173",
+    "https://securepay.sslcommerz.com"
 ];
 const corsOptions = {
-    origin(origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, origin || true);
+    origin: (origin, callback) => {
+        if (!origin ||
+            allowedOrigins.includes(origin) ||
+            origin.includes("sslcommerz.com") ||
+            process.env.NODE_ENV !== "production") {
+            callback(null, true);
         }
         else {
             callback(new Error(`Not allowed by CORS: ${origin}`));

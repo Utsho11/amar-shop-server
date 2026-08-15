@@ -12,19 +12,47 @@ type TOrderItem = {
 const createOrderIntoDB = async (req: Request) => {
   const payload = req.body;
   const { OrderItem, ...rest } = payload;
-  const orderItemPayload = OrderItem.data;
+  const orderItemPayload = OrderItem?.data || [];
   const customerEmail = req.user.email;
+
   const customerDetails = await prisma.customer.findUnique({
     where: {
       email: customerEmail,
     },
   });
 
+  if (!customerDetails) {
+    throw new Error("Customer profile not found.");
+  }
+
+  // Pre-validate stock availability for all order items
+  for (const item of orderItemPayload) {
+    const product = await prisma.product.findUnique({
+      where: { id: item.productId, isDeleted: false },
+    });
+
+    if (!product) {
+      throw new Error(`Product not found or unavailable.`);
+    }
+
+    if (product.inventoryCount < item.quantity) {
+      throw new Error(
+        `Insufficient stock for "${product.name}". Available: ${product.inventoryCount}`
+      );
+    }
+  }
+
   const transactionId = `TNX-${Date.now()}`;
 
-  const order = await prisma.$transaction(async (transactionClient) => {
+  const orderDataPayload = {
+    ...rest,
+    customerEmail, // enforce authenticated user's email
+    paymentMethod: "SSLCommerz",
+  };
+
+  const transactionResult = await prisma.$transaction(async (transactionClient) => {
     const orderData = await transactionClient.order.create({
-      data: rest,
+      data: orderDataPayload,
     });
 
     // Ensure all order items are created properly
@@ -33,7 +61,9 @@ const createOrderIntoDB = async (req: Request) => {
         transactionClient.orderItem.create({
           data: {
             orderId: orderData.id,
-            ...orderItem,
+            productId: orderItem.productId,
+            quantity: orderItem.quantity,
+            price: orderItem.price,
           },
         }),
       ),
@@ -51,19 +81,19 @@ const createOrderIntoDB = async (req: Request) => {
     });
 
     const customerData = {
-      name: customerDetails?.name,
-      email: customerDetails?.email,
+      name: customerDetails.name,
+      email: customerDetails.email,
       totalAmount: payload.totalAmount,
       transactionId: transactionId,
-      phone: customerDetails?.phone,
+      phone: customerDetails.phone || undefined,
     };
 
-    const res = await initiatePayment(customerData as TCustomerData);
-
-    return res; // Optionally return the created order
+    return { customerData: customerData as TCustomerData };
   });
 
-  return order;
+  const paymentResponse = await initiatePayment(transactionResult.customerData);
+
+  return paymentResponse;
 };
 
 const getItemForReviewFromDB = async (req: Request) => {

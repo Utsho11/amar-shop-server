@@ -30,22 +30,43 @@ const payment_utils_1 = require("../../../utils/payment.utils");
 const createOrderIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     const payload = req.body;
     const { OrderItem } = payload, rest = __rest(payload, ["OrderItem"]);
-    const orderItemPayload = OrderItem.data;
+    const orderItemPayload = (OrderItem === null || OrderItem === void 0 ? void 0 : OrderItem.data) || [];
     const customerEmail = req.user.email;
     const customerDetails = yield prisma_1.default.customer.findUnique({
         where: {
             email: customerEmail,
         },
     });
+    if (!customerDetails) {
+        throw new Error("Customer profile not found.");
+    }
+    // Pre-validate stock availability for all order items
+    for (const item of orderItemPayload) {
+        const product = yield prisma_1.default.product.findUnique({
+            where: { id: item.productId, isDeleted: false },
+        });
+        if (!product) {
+            throw new Error(`Product not found or unavailable.`);
+        }
+        if (product.inventoryCount < item.quantity) {
+            throw new Error(`Insufficient stock for "${product.name}". Available: ${product.inventoryCount}`);
+        }
+    }
     const transactionId = `TNX-${Date.now()}`;
-    const order = yield prisma_1.default.$transaction((transactionClient) => __awaiter(void 0, void 0, void 0, function* () {
+    const orderDataPayload = Object.assign(Object.assign({}, rest), { customerEmail, paymentMethod: "SSLCommerz" });
+    const transactionResult = yield prisma_1.default.$transaction((transactionClient) => __awaiter(void 0, void 0, void 0, function* () {
         const orderData = yield transactionClient.order.create({
-            data: rest,
+            data: orderDataPayload,
         });
         // Ensure all order items are created properly
         yield Promise.all(orderItemPayload.map((orderItem) => __awaiter(void 0, void 0, void 0, function* () {
             return transactionClient.orderItem.create({
-                data: Object.assign({ orderId: orderData.id }, orderItem),
+                data: {
+                    orderId: orderData.id,
+                    productId: orderItem.productId,
+                    quantity: orderItem.quantity,
+                    price: orderItem.price,
+                },
             });
         })));
         const tranxData = {
@@ -58,16 +79,16 @@ const createOrderIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* (
             data: tranxData,
         });
         const customerData = {
-            name: customerDetails === null || customerDetails === void 0 ? void 0 : customerDetails.name,
-            email: customerDetails === null || customerDetails === void 0 ? void 0 : customerDetails.email,
+            name: customerDetails.name,
+            email: customerDetails.email,
             totalAmount: payload.totalAmount,
             transactionId: transactionId,
-            phone: customerDetails === null || customerDetails === void 0 ? void 0 : customerDetails.phone,
+            phone: customerDetails.phone || undefined,
         };
-        const res = yield (0, payment_utils_1.initiatePayment)(customerData);
-        return res; // Optionally return the created order
+        return { customerData: customerData };
     }));
-    return order;
+    const paymentResponse = yield (0, payment_utils_1.initiatePayment)(transactionResult.customerData);
+    return paymentResponse;
 });
 const getItemForReviewFromDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     const cus_email = req.user.email;

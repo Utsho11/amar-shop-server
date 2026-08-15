@@ -1,65 +1,449 @@
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import prisma from "../../../shared/prisma";
-import { verifyPayment } from "../../../utils/payment.utils";
-import { readFileSync } from "fs";
-import { join, resolve } from "path";
+import {
+  verifyPayment,
+  verifyPaymentByTransactionId,
+} from "../../../utils/payment.utils";
+import config from "../../../config";
 
-const confirmationService = async (transactionId: string, status: string) => {
+const confirmationService = async (
+  transactionId: string,
+  status: string,
+  valId?: string
+) => {
   if (!transactionId) {
-    console.error("Transaction ID is undefined");
     throw new Error("Transaction ID is required.");
   }
 
-  // console.log("Processing Transaction ID:", transactionId);
+  let isPaymentSuccessful = false;
 
-  const response = await verifyPayment(transactionId);
-  // console.log("Payment Verification Response:", response);
-
-  const successFilePath = resolve(
-    __dirname,
-    "../../../../public/confirmation.html"
-  );
-  const failedFilePath = resolve(__dirname, "../../../../public/failed.html");
-
-  const updateTransactionAndOrder = async (
-    paymentStatus: PaymentStatus,
-    orderStatus: OrderStatus
-  ) => {
-    const trnxData = await prisma.transaction.update({
-      where: { transactionId },
-      data: { paymentStatus },
-    });
-
-    await prisma.order.update({
-      where: { id: trnxData.orderId },
-      data: {
-        status: orderStatus,
-        paymentStatus,
-      },
-    });
-
-    return trnxData;
-  };
+  const normalizedStatus = (status || "").toLowerCase();
 
   if (
-    status === "success" &&
-    response &&
-    response.pay_status === "Successful"
+    normalizedStatus === "success" ||
+    normalizedStatus === "valid" ||
+    normalizedStatus === "validated"
   ) {
-    console.log("Payment Successful");
-    await updateTransactionAndOrder(PaymentStatus.PAID, OrderStatus.COMPLETED);
-    return readFileSync(successFilePath, "utf-8");
+    try {
+      if (valId) {
+        const response = await verifyPayment(valId);
+        if (
+          response &&
+          (response.status === "VALID" ||
+            response.status === "VALIDATED" ||
+            response.status === "SUCCESS")
+        ) {
+          isPaymentSuccessful = true;
+        }
+      } else {
+        const response = await verifyPaymentByTransactionId(transactionId);
+        if (
+          response &&
+          (response.status === "VALID" ||
+            response.status === "VALIDATED" ||
+            response.status === "SUCCESS" ||
+            response.element?.[0]?.status === "VALID")
+        ) {
+          isPaymentSuccessful = true;
+        } else {
+          isPaymentSuccessful = false;
+        }
+      }
+    } catch (err) {
+      console.warn("Payment verification error in sandbox:", err);
+      console.error(err);
+      isPaymentSuccessful = false;
+    }
   }
-  if (status === "failed") {
-    console.log("Payment Failed");
-    await updateTransactionAndOrder(
-      PaymentStatus.FAILED,
-      OrderStatus.CANCELLED
-    );
-    return readFileSync(failedFilePath, "utf-8");
+
+  const clientUrl = config.client_base_url || "http://localhost:5173";
+
+  if (isPaymentSuccessful) {
+    let trnxFound = true;
+    await prisma.$transaction(async (tx) => {
+      const existingTrnx = await tx.transaction.findUnique({
+        where: { transactionId },
+      });
+
+      if (!existingTrnx) {
+        trnxFound = false;
+        return;
+      }
+
+      const wasAlreadyPaid = existingTrnx.paymentStatus === PaymentStatus.PAID;
+
+      await tx.transaction.update({
+        where: { transactionId },
+        data: { paymentStatus: PaymentStatus.PAID },
+      });
+
+      await tx.order.update({
+        where: { id: existingTrnx.orderId },
+        data: {
+          status: OrderStatus.COMPLETED,
+          paymentStatus: PaymentStatus.PAID,
+        },
+      });
+
+      // Atomically decrement inventory count once only
+      if (!wasAlreadyPaid) {
+        const orderItems = await tx.orderItem.findMany({
+          where: { orderId: existingTrnx.orderId },
+        });
+
+        for (const item of orderItems) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: {
+              inventoryCount: {
+                decrement: item.quantity,
+              },
+            },
+          });
+        }
+      }
+    });
+
+    const targetUrl = `${clientUrl}/customerDashboard/myOrder?payment=success&tran_id=${transactionId}`;
+    const failedUrl = `${clientUrl}/checkout?payment=failed&tran_id=${transactionId}`;
+
+    if (!trnxFound) {
+      const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta http-equiv="refresh" content="1;url=${failedUrl}" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Payment Failed - Amar Shop</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              background-color: #f9f5f0;
+              color: #3d352f;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              padding: 20px;
+              box-sizing: border-box;
+            }
+            .card {
+              background: #ffffff;
+              border-radius: 24px;
+              padding: 40px;
+              max-width: 500px;
+              width: 100%;
+              text-align: center;
+              box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+              border: 1px solid #e8ded2;
+            }
+            .icon {
+              width: 64px;
+              height: 64px;
+              background-color: #ffebee;
+              color: #c62828;
+              border-radius: 50%;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 32px;
+              margin-bottom: 20px;
+            }
+            h1 {
+              color: #c62828;
+              margin: 0 0 10px 0;
+              font-size: 24px;
+            }
+            p {
+              color: #6b5e57;
+              line-height: 1.6;
+              margin: 10px 0 20px 0;
+            }
+            .badge {
+              display: inline-block;
+              background: #f4ede4;
+              padding: 6px 14px;
+              border-radius: 20px;
+              font-family: monospace;
+              font-size: 14px;
+              margin-bottom: 24px;
+            }
+            .btn {
+              display: inline-block;
+              background-color: #a66b55;
+              color: #ffffff;
+              text-decoration: none;
+              padding: 12px 28px;
+              border-radius: 30px;
+              font-weight: 600;
+              font-size: 15px;
+            }
+          </style>
+          <script>
+            try {
+              if (window.top && window.top !== window) {
+                window.top.location.href = "${failedUrl}";
+              } else {
+                window.location.replace("${failedUrl}");
+              }
+            } catch (e) {
+              window.location.replace("${failedUrl}");
+            }
+          </script>
+        </head>
+        <body>
+          <div class="card">
+            <div class="icon">✕</div>
+            <h1>Payment Failed or Cancelled</h1>
+            <p>Your transaction could not be completed. Redirecting to checkout...</p>
+            <div class="badge">Trx ID: ${transactionId}</div>
+            <div>
+              <a href="${failedUrl}" class="btn">Click here if not redirected automatically</a>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+      return {
+        isSuccess: false,
+        redirectUrl: failedUrl,
+        html,
+      };
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta http-equiv="refresh" content="1;url=${targetUrl}" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Payment Successful - Amar Shop</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              background-color: #f9f5f0;
+              color: #3d352f;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              padding: 20px;
+              box-sizing: border-box;
+            }
+            .card {
+              background: #ffffff;
+              border-radius: 24px;
+              padding: 40px;
+              max-width: 500px;
+              width: 100%;
+              text-align: center;
+              box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+              border: 1px solid #e8ded2;
+            }
+            .icon {
+              width: 64px;
+              height: 64px;
+              background-color: #e8f5e9;
+              color: #2e7d32;
+              border-radius: 50%;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 32px;
+              margin-bottom: 20px;
+            }
+            h1 {
+              color: #2e7d32;
+              margin: 0 0 10px 0;
+              font-size: 24px;
+            }
+            p {
+              color: #6b5e57;
+              line-height: 1.6;
+              margin: 10px 0 20px 0;
+            }
+            .badge {
+              display: inline-block;
+              background: #f4ede4;
+              padding: 6px 14px;
+              border-radius: 20px;
+              font-family: monospace;
+              font-size: 14px;
+              margin-bottom: 24px;
+            }
+            .btn {
+              display: inline-block;
+              background-color: #a66b55;
+              color: #ffffff;
+              text-decoration: none;
+              padding: 12px 28px;
+              border-radius: 30px;
+              font-weight: 600;
+              font-size: 15px;
+            }
+          </style>
+          <script>
+            try {
+              if (window.top && window.top !== window) {
+                window.top.location.href = "${targetUrl}";
+              } else {
+                window.location.replace("${targetUrl}");
+              }
+            } catch (e) {
+              window.location.replace("${targetUrl}");
+            }
+          </script>
+        </head>
+        <body>
+          <div class="card">
+            <div class="icon">✓</div>
+            <h1>Payment Successful!</h1>
+            <p>Your payment has been verified. Redirecting you to your orders...</p>
+            <div class="badge">Trx ID: ${transactionId}</div>
+            <div>
+              <a href="${targetUrl}" class="btn">Click here if not redirected automatically</a>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    return {
+      isSuccess: true,
+      redirectUrl: targetUrl,
+      html,
+    };
+  } else {
+    await prisma.$transaction(async (tx) => {
+      const trnxData = await tx.transaction.update({
+        where: { transactionId },
+        data: { paymentStatus: PaymentStatus.FAILED },
+      });
+
+      await tx.order.update({
+        where: { id: trnxData.orderId },
+        data: {
+          status: OrderStatus.CANCELLED,
+          paymentStatus: PaymentStatus.FAILED,
+        },
+      });
+    });
+
+    const targetUrl = `${clientUrl}/checkout?payment=failed&tran_id=${transactionId}`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta http-equiv="refresh" content="1;url=${targetUrl}" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Payment Failed - Amar Shop</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              background-color: #f9f5f0;
+              color: #3d352f;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              padding: 20px;
+              box-sizing: border-box;
+            }
+            .card {
+              background: #ffffff;
+              border-radius: 24px;
+              padding: 40px;
+              max-width: 500px;
+              width: 100%;
+              text-align: center;
+              box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+              border: 1px solid #e8ded2;
+            }
+            .icon {
+              width: 64px;
+              height: 64px;
+              background-color: #ffebee;
+              color: #c62828;
+              border-radius: 50%;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 32px;
+              margin-bottom: 20px;
+            }
+            h1 {
+              color: #c62828;
+              margin: 0 0 10px 0;
+              font-size: 24px;
+            }
+            p {
+              color: #6b5e57;
+              line-height: 1.6;
+              margin: 10px 0 20px 0;
+            }
+            .badge {
+              display: inline-block;
+              background: #f4ede4;
+              padding: 6px 14px;
+              border-radius: 20px;
+              font-family: monospace;
+              font-size: 14px;
+              margin-bottom: 24px;
+            }
+            .btn {
+              display: inline-block;
+              background-color: #a66b55;
+              color: #ffffff;
+              text-decoration: none;
+              padding: 12px 28px;
+              border-radius: 30px;
+              font-weight: 600;
+              font-size: 15px;
+            }
+          </style>
+          <script>
+            try {
+              if (window.top && window.top !== window) {
+                window.top.location.href = "${targetUrl}";
+              } else {
+                window.location.replace("${targetUrl}");
+              }
+            } catch (e) {
+              window.location.replace("${targetUrl}");
+            }
+          </script>
+        </head>
+        <body>
+          <div class="card">
+            <div class="icon">✕</div>
+            <h1>Payment Failed or Cancelled</h1>
+            <p>Your transaction could not be completed. Redirecting to checkout...</p>
+            <div class="badge">Trx ID: ${transactionId}</div>
+            <div>
+              <a href="${targetUrl}" class="btn">Click here if not redirected automatically</a>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    return {
+      isSuccess: false,
+      redirectUrl: targetUrl,
+      html,
+    };
   }
 };
 
 export const PaymentService = {
   confirmationService,
 };
+
