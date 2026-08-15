@@ -70,6 +70,15 @@ const getMyWishlist = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, 
         data: result,
     });
 }));
+const getDashboardStats = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield customer_services_1.CustomerServices.getCustomerDashboardStatsFromDB(req);
+    (0, sendResponse_1.default)(res, {
+        statusCode: 200,
+        success: true,
+        message: "Customer dashboard stats fetched successfully",
+        data: result,
+    });
+}));
 exports.CustomerControllers = {
     createOrder,
     getItemForReview,
@@ -77,4 +86,5 @@ exports.CustomerControllers = {
     getMyOrderHistory,
     toggleWishlist,
     getMyWishlist,
+    getDashboardStats,
 };

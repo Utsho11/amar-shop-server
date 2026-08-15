@@ -23,4 +23,5 @@ router.get("/get-products", (0, auth_1.default)(client_1.UserRole.VENDOR), vendo
 router.get("/order-history", (0, auth_1.default)(client_1.UserRole.VENDOR), vendor_controllers_1.VendorControllers.getOrderHistory);
 router.patch("/update-order-status/:orderId", (0, auth_1.default)(client_1.UserRole.VENDOR), vendor_controllers_1.VendorControllers.updateOrderStatus);
 router.get("/get-my-shop", (0, auth_1.default)(client_1.UserRole.VENDOR), shop_controllers_1.ShopControllers.getMyShop);
+router.get("/dashboard-stats", (0, auth_1.default)(client_1.UserRole.VENDOR), vendor_controllers_1.VendorControllers.getDashboardStats);
 exports.VendorRoutes = router;

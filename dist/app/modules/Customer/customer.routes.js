@@ -15,4 +15,5 @@ router.get("/orderItemForReview", (0, auth_1.default)(client_1.UserRole.CUSTOMER
 router.get("/myOrderHistory", (0, auth_1.default)(client_1.UserRole.CUSTOMER), customer_controllers_1.CustomerControllers.getMyOrderHistory);
 router.post("/wishlist/toggle", (0, auth_1.default)(client_1.UserRole.CUSTOMER), customer_controllers_1.CustomerControllers.toggleWishlist);
 router.get("/wishlist", (0, auth_1.default)(client_1.UserRole.CUSTOMER), customer_controllers_1.CustomerControllers.getMyWishlist);
+router.get("/dashboard-stats", (0, auth_1.default)(client_1.UserRole.CUSTOMER), customer_controllers_1.CustomerControllers.getDashboardStats);
 exports.CustomerRoutes = router;

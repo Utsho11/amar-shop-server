@@ -41,4 +41,10 @@ router.get(
   CustomerControllers.getMyWishlist
 );
 
+router.get(
+  "/dashboard-stats",
+  auth(UserRole.CUSTOMER),
+  CustomerControllers.getDashboardStats
+);
+
 export const CustomerRoutes = router;

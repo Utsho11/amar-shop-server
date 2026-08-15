@@ -314,6 +314,96 @@ const getMyWishlistFromDB = async (req: Request) => {
   return wishlist.map((item) => item.product);
 };
 
+const getCustomerDashboardStatsFromDB = async (req: Request) => {
+  const customerEmail = req.user.email;
+
+  const [
+    orders,
+    wishlistCount,
+    reviewsGiven,
+  ] = await Promise.all([
+    prisma.order.findMany({
+      where: {
+        customerEmail,
+        paymentStatus: "PAID",
+      },
+      include: {
+        OrderItem: {
+          include: {
+            product: {
+              select: { name: true, imageUrl: true, price: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.wishlist.count({
+      where: {
+        customerEmail,
+        product: { isDeleted: false },
+      },
+    }),
+    prisma.review.count({
+      where: { customerEmail },
+    }),
+  ]);
+
+  const lifetimeSpend = orders.reduce(
+    (sum, o) => sum + Number(o.totalAmount || 0),
+    0
+  );
+
+  const totalOrders = orders.length;
+
+  const inTransitOrders = orders.filter(
+    (o) => o.status === "PENDING" || o.status === "PROCESSING" || o.status === "SHIPPED"
+  );
+
+  const inTransitOrdersCount = inTransitOrders.length;
+
+  const activeDeliveries = inTransitOrders.slice(0, 3).map((o) => ({
+    id: o.id,
+    orderStatus: o.status,
+    totalAmount: o.totalAmount,
+    createdAt: o.createdAt,
+    shippingAddress: o.shippingAddress,
+    shippingCity: o.shippingCity,
+    items: o.OrderItem.map((item) => ({
+      productName: item.product.name,
+      productImage: item.product.imageUrl?.[0] || "",
+      quantity: item.quantity,
+      price: item.price || item.product.price,
+    })),
+  }));
+
+  const recentOrders = orders.slice(0, 5).map((o) => ({
+    id: o.id,
+    orderStatus: o.status,
+    totalAmount: o.totalAmount,
+    createdAt: o.createdAt,
+    shippingAddress: o.shippingAddress,
+    shippingCity: o.shippingCity,
+    itemCount: o.OrderItem.length,
+    items: o.OrderItem.map((item) => ({
+      productName: item.product.name,
+      productImage: item.product.imageUrl?.[0] || "",
+      quantity: item.quantity,
+      price: item.price || item.product.price,
+    })),
+  }));
+
+  return {
+    lifetimeSpend,
+    totalOrders,
+    inTransitOrdersCount,
+    wishlistCount,
+    reviewsGiven,
+    activeDeliveries,
+    recentOrders,
+  };
+};
+
 export const CustomerServices = {
   createOrderIntoDB,
   getItemForReviewFromDB,
@@ -321,4 +411,5 @@ export const CustomerServices = {
   getMyOrderHistoryFromDB,
   toggleWishlistIntoDB,
   getMyWishlistFromDB,
+  getCustomerDashboardStatsFromDB,
 };

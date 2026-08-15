@@ -76,6 +76,17 @@ const checkCoupon = catchAsync(async (req, res) => {
   });
 });
 
+const getDashboardStats = catchAsync(async (req, res) => {
+  const result = await AdminServices.getAdminDashboardStatsFromDB();
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Admin dashboard stats retrieved successfully",
+    data: result,
+  });
+});
+
 export const AdminControllers = {
   suspendUser,
   deleteUser,
@@ -84,4 +95,5 @@ export const AdminControllers = {
   getAllTransactions,
   createCoupon,
   checkCoupon,
+  getDashboardStats,
 };

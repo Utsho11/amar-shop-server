@@ -73,4 +73,10 @@ router.patch(
 
 router.get("/get-my-shop", auth(UserRole.VENDOR), ShopControllers.getMyShop);
 
+router.get(
+  "/dashboard-stats",
+  auth(UserRole.VENDOR),
+  VendorControllers.getDashboardStats
+);
+
 export const VendorRoutes = router;

@@ -65,4 +65,10 @@ router.post(
 
 router.post("/check-coupon", AdminControllers.checkCoupon);
 
+router.get(
+  "/dashboard-stats",
+  auth(UserRole.ADMIN),
+  AdminControllers.getDashboardStats
+);
+
 export const AdminRoutes = router;

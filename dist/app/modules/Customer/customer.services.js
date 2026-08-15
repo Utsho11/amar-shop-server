@@ -292,6 +292,84 @@ const getMyWishlistFromDB = (req) => __awaiter(void 0, void 0, void 0, function*
     });
     return wishlist.map((item) => item.product);
 });
+const getCustomerDashboardStatsFromDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
+    const customerEmail = req.user.email;
+    const [orders, wishlistCount, reviewsGiven,] = yield Promise.all([
+        prisma_1.default.order.findMany({
+            where: {
+                customerEmail,
+                paymentStatus: "PAID",
+            },
+            include: {
+                OrderItem: {
+                    include: {
+                        product: {
+                            select: { name: true, imageUrl: true, price: true },
+                        },
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        }),
+        prisma_1.default.wishlist.count({
+            where: {
+                customerEmail,
+                product: { isDeleted: false },
+            },
+        }),
+        prisma_1.default.review.count({
+            where: { customerEmail },
+        }),
+    ]);
+    const lifetimeSpend = orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+    const totalOrders = orders.length;
+    const inTransitOrders = orders.filter((o) => o.status === "PENDING" || o.status === "PROCESSING" || o.status === "SHIPPED");
+    const inTransitOrdersCount = inTransitOrders.length;
+    const activeDeliveries = inTransitOrders.slice(0, 3).map((o) => ({
+        id: o.id,
+        orderStatus: o.status,
+        totalAmount: o.totalAmount,
+        createdAt: o.createdAt,
+        shippingAddress: o.shippingAddress,
+        shippingCity: o.shippingCity,
+        items: o.OrderItem.map((item) => {
+            var _a;
+            return ({
+                productName: item.product.name,
+                productImage: ((_a = item.product.imageUrl) === null || _a === void 0 ? void 0 : _a[0]) || "",
+                quantity: item.quantity,
+                price: item.price || item.product.price,
+            });
+        }),
+    }));
+    const recentOrders = orders.slice(0, 5).map((o) => ({
+        id: o.id,
+        orderStatus: o.status,
+        totalAmount: o.totalAmount,
+        createdAt: o.createdAt,
+        shippingAddress: o.shippingAddress,
+        shippingCity: o.shippingCity,
+        itemCount: o.OrderItem.length,
+        items: o.OrderItem.map((item) => {
+            var _a;
+            return ({
+                productName: item.product.name,
+                productImage: ((_a = item.product.imageUrl) === null || _a === void 0 ? void 0 : _a[0]) || "",
+                quantity: item.quantity,
+                price: item.price || item.product.price,
+            });
+        }),
+    }));
+    return {
+        lifetimeSpend,
+        totalOrders,
+        inTransitOrdersCount,
+        wishlistCount,
+        reviewsGiven,
+        activeDeliveries,
+        recentOrders,
+    };
+});
 exports.CustomerServices = {
     createOrderIntoDB,
     getItemForReviewFromDB,
@@ -299,4 +377,5 @@ exports.CustomerServices = {
     getMyOrderHistoryFromDB,
     toggleWishlistIntoDB,
     getMyWishlistFromDB,
+    getCustomerDashboardStatsFromDB,
 };

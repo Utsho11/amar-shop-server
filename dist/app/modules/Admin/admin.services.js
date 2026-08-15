@@ -187,15 +187,79 @@ const checkCouponFromDB = (code) => __awaiter(void 0, void 0, void 0, function* 
             discountPercent: true,
         },
     });
-    // Check if a coupon was found
     if (result) {
-        // console.log(result);
         return result.discountPercent;
     }
     else {
         console.log("Coupon not found.");
-        return null; // Return null if no coupon is found
+        return null;
     }
+});
+const getAdminDashboardStatsFromDB = () => __awaiter(void 0, void 0, void 0, function* () {
+    const [totalUsers, totalShops, totalOrders, transactions, recentOrders, categoriesWithCount,] = yield Promise.all([
+        prisma_1.default.user.count({ where: { isDeleted: false } }),
+        prisma_1.default.shop.count({ where: { isDeleted: false } }),
+        prisma_1.default.order.count({ where: { paymentStatus: "PAID" } }),
+        prisma_1.default.transaction.findMany({
+            where: { paymentStatus: "PAID" },
+            select: { amount: true, createdAt: true },
+        }),
+        prisma_1.default.order.findMany({
+            where: { paymentStatus: "PAID" },
+            take: 5,
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                customerEmail: true,
+                totalAmount: true,
+                status: true,
+                createdAt: true,
+                customer: { select: { name: true, image: true } },
+            },
+        }),
+        prisma_1.default.category.findMany({
+            where: { isDeleted: false },
+            select: {
+                name: true,
+                _count: {
+                    select: { Product: { where: { isDeleted: false } } },
+                },
+            },
+        }),
+    ]);
+    const totalRevenue = transactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const currentYear = new Date().getFullYear();
+    const monthlyRevenueMap = {};
+    months.forEach((m) => {
+        monthlyRevenueMap[m] = { revenue: 0, orders: 0 };
+    });
+    transactions.forEach((t) => {
+        const d = new Date(t.createdAt);
+        if (d.getFullYear() === currentYear) {
+            const monthName = months[d.getMonth()];
+            monthlyRevenueMap[monthName].revenue += Number(t.amount || 0);
+            monthlyRevenueMap[monthName].orders += 1;
+        }
+    });
+    const monthlyRevenue = months.map((month) => ({
+        month,
+        revenue: monthlyRevenueMap[month].revenue,
+        orders: monthlyRevenueMap[month].orders,
+    }));
+    const topCategories = categoriesWithCount.map((c) => ({
+        name: c.name,
+        productCount: c._count.Product,
+    }));
+    return {
+        totalRevenue,
+        totalUsers,
+        totalShops,
+        totalOrders,
+        monthlyRevenue,
+        recentOrders,
+        topCategories,
+    };
 });
 exports.AdminServices = {
     suspendUserFromDB,
@@ -205,4 +269,5 @@ exports.AdminServices = {
     getAllTransactionsFromDB,
     createCouponFromDB,
     checkCouponFromDB,
+    getAdminDashboardStatsFromDB,
 };

@@ -32,8 +32,19 @@ const updateOrderStatus = catchAsync(async (req, res) => {
   });
 });
 
+const getDashboardStats = catchAsync(async (req, res) => {
+  const result = await VendorServices.getVendorDashboardStatsFromDB(req);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Vendor dashboard stats retrieved successfully!",
+    data: result,
+  });
+});
+
 export const VendorControllers = {
   getProducts,
   getOrderHistory,
   updateOrderStatus,
+  getDashboardStats,
 };

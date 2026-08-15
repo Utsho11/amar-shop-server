@@ -24,4 +24,5 @@ router.patch("/block-shop/:shop_id", (0, auth_1.default)(client_1.UserRole.ADMIN
 router.get("/all-transactions", (0, auth_1.default)(client_1.UserRole.ADMIN), admin_controllers_1.AdminControllers.getAllTransactions);
 router.post("/create-coupon", (0, auth_1.default)(client_1.UserRole.ADMIN), admin_controllers_1.AdminControllers.createCoupon);
 router.post("/check-coupon", admin_controllers_1.AdminControllers.checkCoupon);
+router.get("/dashboard-stats", (0, auth_1.default)(client_1.UserRole.ADMIN), admin_controllers_1.AdminControllers.getDashboardStats);
 exports.AdminRoutes = router;
