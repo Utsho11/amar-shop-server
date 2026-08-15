@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VendorServices = void 0;
 const prisma_1 = __importDefault(require("../../../shared/prisma"));
+const client_1 = require("@prisma/client");
 const getProductsFromDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const v_email = req.user.email;
@@ -63,7 +64,9 @@ const getOrderHistoryFromDB = (req) => __awaiter(void 0, void 0, void 0, functio
                 },
             },
             select: {
+                id: true,
                 quantity: true,
+                price: true,
                 product: {
                     select: {
                         name: true,
@@ -73,6 +76,13 @@ const getOrderHistoryFromDB = (req) => __awaiter(void 0, void 0, void 0, functio
                 },
                 order: {
                     select: {
+                        id: true,
+                        status: true,
+                        customerEmail: true,
+                        shippingAddress: true,
+                        shippingCity: true,
+                        shippingPhone: true,
+                        createdAt: true,
                         Transaction: {
                             select: {
                                 transactionId: true,
@@ -82,27 +92,68 @@ const getOrderHistoryFromDB = (req) => __awaiter(void 0, void 0, void 0, functio
                     },
                 },
             },
+            orderBy: {
+                id: "desc",
+            },
         });
         // Restructure the output
         const orderItems = rawOrderItems.map((item) => {
             var _a, _b;
             return ({
+                id: item.id,
+                orderId: item.order.id,
                 quantity: item.quantity,
                 productName: item.product.name,
                 productImage: item.product.imageUrl,
-                productPrice: item.product.price,
+                productPrice: item.price || item.product.price,
+                orderStatus: item.order.status,
+                customerEmail: item.order.customerEmail,
+                shippingAddress: item.order.shippingAddress,
+                shippingCity: item.order.shippingCity,
+                shippingPhone: item.order.shippingPhone,
                 transactionId: ((_a = item.order.Transaction[0]) === null || _a === void 0 ? void 0 : _a.transactionId) || null,
-                createdAt: ((_b = item.order.Transaction[0]) === null || _b === void 0 ? void 0 : _b.createdAt) || null,
+                createdAt: item.order.createdAt || ((_b = item.order.Transaction[0]) === null || _b === void 0 ? void 0 : _b.createdAt) || null,
             });
         });
-        // console.log(orderItems);
         return orderItems;
     }
     catch (error) {
-        throw new Error("Error fetching order");
+        throw new Error("Error fetching orders");
     }
+});
+const updateOrderStatusIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
+    const { orderId } = req.params;
+    const { status } = req.body;
+    const v_email = req.user.email;
+    if (!Object.values(client_1.OrderStatus).includes(status)) {
+        throw new Error(`Invalid status. Must be one of: ${Object.values(client_1.OrderStatus).join(", ")}`);
+    }
+    // Ensure this vendor owns at least one product in this order
+    const orderExists = yield prisma_1.default.order.findFirst({
+        where: {
+            id: orderId,
+            OrderItem: {
+                some: {
+                    product: {
+                        shop: {
+                            vendorEmail: v_email,
+                        },
+                    },
+                },
+            },
+        },
+    });
+    if (!orderExists) {
+        throw new Error("Order not found or you are not authorized to update this order.");
+    }
+    const updatedOrder = yield prisma_1.default.order.update({
+        where: { id: orderId },
+        data: { status: status },
+    });
+    return updatedOrder;
 });
 exports.VendorServices = {
     getProductsFromDB,
     getOrderHistoryFromDB,
+    updateOrderStatusIntoDB,
 };

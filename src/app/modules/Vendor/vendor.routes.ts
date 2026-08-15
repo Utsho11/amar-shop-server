@@ -65,6 +65,12 @@ router.get(
   VendorControllers.getOrderHistory,
 );
 
+router.patch(
+  "/update-order-status/:orderId",
+  auth(UserRole.VENDOR),
+  VendorControllers.updateOrderStatus,
+);
+
 router.get("/get-my-shop", auth(UserRole.VENDOR), ShopControllers.getMyShop);
 
 export const VendorRoutes = router;

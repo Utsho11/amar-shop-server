@@ -22,7 +22,18 @@ const getOrderHistory = catchAsync(async (req, res) => {
   });
 });
 
+const updateOrderStatus = catchAsync(async (req, res) => {
+  const result = await VendorServices.updateOrderStatusIntoDB(req);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Order status updated successfully!",
+    data: result,
+  });
+});
+
 export const VendorControllers = {
   getProducts,
   getOrderHistory,
+  updateOrderStatus,
 };
