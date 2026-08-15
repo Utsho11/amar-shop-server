@@ -99,6 +99,24 @@ const getReviews = catchAsync(async (req, res) => {
     data: result,
   });
 });
+
+const getRecommendedProducts = catchAsync(async (req, res) => {
+  const { p_id } = req.params;
+  const { limit } = req.query;
+
+  const result = await ProductServices.getRecommendedProductsFromDB(
+    p_id,
+    Number(limit) || 6
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Recommended products fetched successfully!",
+    data: result,
+  });
+});
+
 export const ProductControllers = {
   createProduct,
   deleteProduct,
@@ -108,4 +126,5 @@ export const ProductControllers = {
   duplicateProduct,
   getFlashSaleProducts,
   getReviews,
+  getRecommendedProducts,
 };

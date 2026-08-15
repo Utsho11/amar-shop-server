@@ -93,6 +93,17 @@ const getReviews = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, voi
         data: result,
     });
 }));
+const getRecommendedProducts = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { p_id } = req.params;
+    const { limit } = req.query;
+    const result = yield product_services_1.ProductServices.getRecommendedProductsFromDB(p_id, Number(limit) || 6);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "Recommended products fetched successfully!",
+        data: result,
+    });
+}));
 exports.ProductControllers = {
     createProduct,
     deleteProduct,
@@ -102,4 +113,5 @@ exports.ProductControllers = {
     duplicateProduct,
     getFlashSaleProducts,
     getReviews,
+    getRecommendedProducts,
 };

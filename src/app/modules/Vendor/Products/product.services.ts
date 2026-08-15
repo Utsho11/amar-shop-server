@@ -316,6 +316,95 @@ const getReviewsFromDB = async (p_id: string, page = 1, limit = 50) => {
   return simplifiedReviews;
 };
 
+const getRecommendedProductsFromDB = async (p_id: string, limit = 6) => {
+  try {
+    const currentProduct = await prisma.product.findUnique({
+      where: { id: p_id },
+      select: { categoryId: true, price: true, id: true },
+    });
+
+    if (!currentProduct) {
+      return await prisma.product.findMany({
+        where: { isDeleted: false },
+        take: limit,
+        orderBy: { discount: "desc" },
+        include: {
+          shop: { select: { id: true, name: true } },
+          category: { select: { name: true } },
+        },
+      });
+    }
+
+    const priceNum = Number(currentProduct.price);
+    const minPrice = priceNum * 0.5;
+    const maxPrice = priceNum * 1.5;
+
+    let recommendations = await prisma.product.findMany({
+      where: {
+        id: { not: p_id },
+        categoryId: currentProduct.categoryId,
+        isDeleted: false,
+        price: {
+          gte: minPrice,
+          lte: maxPrice,
+        },
+      },
+      take: limit,
+      orderBy: {
+        discount: "desc",
+      },
+      include: {
+        shop: { select: { id: true, name: true } },
+        category: { select: { name: true } },
+      },
+    });
+
+    if (recommendations.length < limit) {
+      const existingIds = [p_id, ...recommendations.map((r) => r.id)];
+      const additional = await prisma.product.findMany({
+        where: {
+          id: { notIn: existingIds },
+          categoryId: currentProduct.categoryId,
+          isDeleted: false,
+        },
+        take: limit - recommendations.length,
+        orderBy: {
+          discount: "desc",
+        },
+        include: {
+          shop: { select: { id: true, name: true } },
+          category: { select: { name: true } },
+        },
+      });
+      recommendations = [...recommendations, ...additional];
+    }
+
+    if (recommendations.length < limit) {
+      const existingIds = [p_id, ...recommendations.map((r) => r.id)];
+      const fillers = await prisma.product.findMany({
+        where: {
+          id: { notIn: existingIds },
+          isDeleted: false,
+        },
+        take: limit - recommendations.length,
+        orderBy: {
+          discount: "desc",
+        },
+        include: {
+          shop: { select: { id: true, name: true } },
+          category: { select: { name: true } },
+        },
+      });
+      recommendations = [...recommendations, ...fillers];
+    }
+
+    return recommendations;
+  } catch (error) {
+    console.error("Error fetching recommendations:", error);
+    return [];
+  }
+};
+
 export const ProductServices = {
   createProductIntoDB,
   deleteProductFromDB,
@@ -325,4 +414,5 @@ export const ProductServices = {
   duplicateProductFromDB,
   getFlashSaleProductsFromDB,
   getReviewsFromDB,
+  getRecommendedProductsFromDB,
 };

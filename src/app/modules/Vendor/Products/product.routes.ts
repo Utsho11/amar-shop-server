@@ -5,7 +5,8 @@ const router = express.Router();
 
 router.get("/", ProductControllers.getAllProducts);
 router.get("/flashSaleProducts", ProductControllers.getFlashSaleProducts);
-router.get("/:p_id", ProductControllers.getSingleProduct);
+router.get("/recommendations/:p_id", ProductControllers.getRecommendedProducts);
 router.get("/review/:p_id", ProductControllers.getReviews);
+router.get("/:p_id", ProductControllers.getSingleProduct);
 
 export const ProductRoutes = router;
