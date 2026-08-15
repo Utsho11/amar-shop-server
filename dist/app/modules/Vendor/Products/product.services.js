@@ -68,10 +68,14 @@ const updateProductIntoDB = (req) => __awaiter(void 0, void 0, void 0, function*
     try {
         const payload = req.body;
         const file = req.file;
-        payload.discount = Number(payload.discount);
-        payload.inventoryCount = Number(payload.inventoryCount);
+        if (payload.discount !== undefined) {
+            payload.discount = Number(payload.discount);
+        }
+        if (payload.inventoryCount !== undefined) {
+            payload.inventoryCount = Number(payload.inventoryCount);
+        }
         if (file) {
-            payload.imageUrl = file === null || file === void 0 ? void 0 : file.path;
+            payload.imageUrl = [file.path];
         }
         const isProductExist = yield prisma_1.default.product.findFirst({
             where: {
@@ -91,7 +95,7 @@ const updateProductIntoDB = (req) => __awaiter(void 0, void 0, void 0, function*
         return result;
     }
     catch (error) {
-        throw new Error("Product update is failed. Please try again.");
+        throw new Error("Product update failed. Please try again.");
     }
 });
 const deleteProductFromDB = (product_id) => __awaiter(void 0, void 0, void 0, function* () {
@@ -236,7 +240,9 @@ const getFlashSaleProductsFromDB = () => __awaiter(void 0, void 0, void 0, funct
     // console.log(results);
     return results;
 });
-const getReviewsFromDB = (p_id) => __awaiter(void 0, void 0, void 0, function* () {
+const getReviewsFromDB = (p_id_1, ...args_1) => __awaiter(void 0, [p_id_1, ...args_1], void 0, function* (p_id, page = 1, limit = 10) {
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
     const result = yield prisma_1.default.review.findMany({
         where: {
             productId: p_id,
@@ -249,17 +255,32 @@ const getReviewsFromDB = (p_id) => __awaiter(void 0, void 0, void 0, function* (
                 },
             },
         },
+        orderBy: {
+            createdAt: "desc",
+        },
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
+    });
+    const totalReviews = yield prisma_1.default.review.count({
+        where: { productId: p_id },
     });
     const simplifiedReviews = result.map((review) => {
         var _a, _b;
         return ({
+            id: review.id,
             rating: review.rating,
             comment: review.comment,
+            createdAt: review.createdAt,
             username: ((_a = review.customer) === null || _a === void 0 ? void 0 : _a.name) || "Anonymous",
             image: ((_b = review.customer) === null || _b === void 0 ? void 0 : _b.image) || null,
         });
     });
-    return simplifiedReviews;
+    return {
+        reviews: simplifiedReviews,
+        totalReviews,
+        page: pageNum,
+        limit: limitNum,
+    };
 });
 exports.ProductServices = {
     createProductIntoDB,

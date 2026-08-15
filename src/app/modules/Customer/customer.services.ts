@@ -1,19 +1,23 @@
 import { Request } from "express";
 import prisma from "../../../shared/prisma";
-import { OrderStatus, PaymentStatus, UserStatus } from "@prisma/client";
+import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { initiatePayment, TCustomerData } from "../../../utils/payment.utils";
 
-type TOrderItem = {
+type TOrderItemInput = {
   productId: string;
   quantity: number;
-  price: number;
+  price?: number;
 };
 
 const createOrderIntoDB = async (req: Request) => {
   const payload = req.body;
-  const { OrderItem, ...rest } = payload;
-  const orderItemPayload = OrderItem?.data || [];
+  const { OrderItem, couponCode, ...rest } = payload;
+  const orderItemPayload: TOrderItemInput[] = OrderItem?.data || [];
   const customerEmail = req.user.email;
+
+  if (!orderItemPayload.length) {
+    throw new Error("Cannot place an order with empty items.");
+  }
 
   const customerDetails = await prisma.customer.findUnique({
     where: {
@@ -25,7 +29,10 @@ const createOrderIntoDB = async (req: Request) => {
     throw new Error("Customer profile not found.");
   }
 
-  // Pre-validate stock availability for all order items
+  // Pre-validate stock and calculate secure server-side price
+  let calculatedSubtotal = 0;
+  const verifiedItems: { productId: string; quantity: number; price: number }[] = [];
+
   for (const item of orderItemPayload) {
     const product = await prisma.product.findUnique({
       where: { id: item.productId, isDeleted: false },
@@ -40,14 +47,46 @@ const createOrderIntoDB = async (req: Request) => {
         `Insufficient stock for "${product.name}". Available: ${product.inventoryCount}`
       );
     }
+
+    const originalPrice = Number(product.price);
+    const discount = product.discount || 0;
+    const itemPrice = discount > 0 ? originalPrice - (originalPrice * discount) / 100 : originalPrice;
+    
+    calculatedSubtotal += itemPrice * item.quantity;
+
+    verifiedItems.push({
+      productId: product.id,
+      quantity: item.quantity,
+      price: itemPrice,
+    });
   }
+
+  let finalAmount = calculatedSubtotal;
+
+  if (couponCode) {
+    const coupon = await prisma.coupon.findUnique({
+      where: { code: couponCode },
+    });
+    if (coupon && coupon.discountPercent > 0) {
+      finalAmount = finalAmount - (finalAmount * coupon.discountPercent) / 100;
+    }
+  }
+
+  // Format to 2 decimal places
+  finalAmount = Math.max(0, Math.round(finalAmount * 100) / 100);
 
   const transactionId = `TNX-${Date.now()}`;
 
   const orderDataPayload = {
-    ...rest,
-    customerEmail, // enforce authenticated user's email
+    customerEmail,
+    totalAmount: finalAmount,
     paymentMethod: "SSLCommerz",
+    paymentStatus: PaymentStatus.PENDING,
+    status: OrderStatus.PENDING,
+    shippingAddress: payload.shippingAddress || rest.shippingAddress || null,
+    shippingCity: payload.shippingCity || rest.shippingCity || null,
+    shippingZipCode: payload.shippingZipCode || rest.shippingZipCode || null,
+    shippingPhone: payload.shippingPhone || rest.shippingPhone || customerDetails.phone || null,
   };
 
   const transactionResult = await prisma.$transaction(async (transactionClient) => {
@@ -55,9 +94,8 @@ const createOrderIntoDB = async (req: Request) => {
       data: orderDataPayload,
     });
 
-    // Ensure all order items are created properly
     await Promise.all(
-      orderItemPayload.map(async (orderItem: TOrderItem) =>
+      verifiedItems.map(async (orderItem) =>
         transactionClient.orderItem.create({
           data: {
             orderId: orderData.id,
@@ -83,9 +121,9 @@ const createOrderIntoDB = async (req: Request) => {
     const customerData = {
       name: customerDetails.name,
       email: customerDetails.email,
-      totalAmount: payload.totalAmount,
+      totalAmount: finalAmount,
       transactionId: transactionId,
-      phone: customerDetails.phone || undefined,
+      phone: orderDataPayload.shippingPhone || "01700000000",
     };
 
     return { customerData: customerData as TCustomerData };
@@ -103,7 +141,7 @@ const getItemForReviewFromDB = async (req: Request) => {
       isReviewed: false,
       order: {
         customerEmail: cus_email,
-        status: OrderStatus.COMPLETED,
+        paymentStatus: PaymentStatus.PAID,
       },
     },
     select: {
@@ -137,18 +175,25 @@ const addReviewIntoDB = async (req: Request) => {
   });
 
   if (result.id) {
-    await prisma.orderItem.updateMany({
-      where: {
-        productId: payload.productId,
-        order: {
-          customerEmail: cus_email,
-          status: OrderStatus.COMPLETED,
+    if (payload.orderItemId) {
+      await prisma.orderItem.update({
+        where: { id: payload.orderItemId },
+        data: { isReviewed: true },
+      });
+    } else {
+      await prisma.orderItem.updateMany({
+        where: {
+          productId: payload.productId,
+          order: {
+            customerEmail: cus_email,
+            paymentStatus: PaymentStatus.PAID,
+          },
         },
-      },
-      data: {
-        isReviewed: true,
-      },
-    });
+        data: {
+          isReviewed: true,
+        },
+      });
+    }
   }
 
   return "Review added successfully";
@@ -160,7 +205,7 @@ const getMyOrderHistoryFromDB = async (req: Request) => {
     where: {
       order: {
         customerEmail: cus_email,
-        status: OrderStatus.COMPLETED,
+        paymentStatus: PaymentStatus.PAID,
       },
     },
     include: {
@@ -173,6 +218,11 @@ const getMyOrderHistoryFromDB = async (req: Request) => {
       },
       order: {
         select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          shippingAddress: true,
+          shippingCity: true,
           Transaction: {
             select: {
               transactionId: true,
@@ -181,17 +231,24 @@ const getMyOrderHistoryFromDB = async (req: Request) => {
         },
       },
     },
+    orderBy: {
+      id: "desc",
+    },
   });
 
   const structuredOrders = orders.map((item) => ({
+    id: item.id,
+    orderId: item.order.id,
     quantity: item.quantity,
     productName: item.product.name,
-    productPrice: item.product.price,
+    productPrice: item.price || item.product.price,
     productImage: item.product.imageUrl,
     transactionId: item.order.Transaction[0]?.transactionId || null,
+    orderStatus: item.order.status,
+    createdAt: item.order.createdAt,
+    shippingAddress: item.order.shippingAddress,
+    shippingCity: item.order.shippingCity,
   }));
-
-  console.log(structuredOrders);
 
   return structuredOrders;
 };

@@ -84,11 +84,15 @@ const updateProductIntoDB = async (req: Request) => {
     const payload = req.body;
     const file = req.file as IFile | undefined;
 
-    payload.discount = Number(payload.discount);
-    payload.inventoryCount = Number(payload.inventoryCount);
+    if (payload.discount !== undefined) {
+      payload.discount = Number(payload.discount);
+    }
+    if (payload.inventoryCount !== undefined) {
+      payload.inventoryCount = Number(payload.inventoryCount);
+    }
 
     if (file) {
-      payload.imageUrl = file?.path;
+      payload.imageUrl = [file.path];
     }
 
     const isProductExist = await prisma.product.findFirst({
@@ -111,7 +115,7 @@ const updateProductIntoDB = async (req: Request) => {
 
     return result;
   } catch (error) {
-    throw new Error("Product update is failed. Please try again.");
+    throw new Error("Product update failed. Please try again.");
   }
 };
 
@@ -277,7 +281,10 @@ const getFlashSaleProductsFromDB = async () => {
   return results;
 };
 
-const getReviewsFromDB = async (p_id: string) => {
+const getReviewsFromDB = async (p_id: string, page = 1, limit = 10) => {
+  const pageNum = Number(page) || 1;
+  const limitNum = Number(limit) || 10;
+
   const result = await prisma.review.findMany({
     where: {
       productId: p_id,
@@ -290,16 +297,32 @@ const getReviewsFromDB = async (p_id: string) => {
         },
       },
     },
+    orderBy: {
+      createdAt: "desc",
+    },
+    skip: (pageNum - 1) * limitNum,
+    take: limitNum,
+  });
+
+  const totalReviews = await prisma.review.count({
+    where: { productId: p_id },
   });
 
   const simplifiedReviews = result.map((review) => ({
+    id: review.id,
     rating: review.rating,
     comment: review.comment,
+    createdAt: review.createdAt,
     username: review.customer?.name || "Anonymous",
     image: review.customer?.image || null,
   }));
 
-  return simplifiedReviews;
+  return {
+    reviews: simplifiedReviews,
+    totalReviews,
+    page: pageNum,
+    limit: limitNum,
+  };
 };
 
 export const ProductServices = {

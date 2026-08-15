@@ -84,13 +84,18 @@ const getFlashSaleProducts = catchAsync(async (req, res) => {
 
 const getReviews = catchAsync(async (req, res) => {
   const { p_id } = req.params;
+  const { page, limit } = req.query;
 
-  const result = await ProductServices.getReviewsFromDB(p_id);
+  const result = await ProductServices.getReviewsFromDB(
+    p_id,
+    Number(page) || 1,
+    Number(limit) || 10
+  );
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: "Product fetched successfuly!",
+    message: "Product reviews fetched successfully!",
     data: result,
   });
 });

@@ -129,24 +129,31 @@ model Product {
   Review    Review[]
   OrderItem OrderItem[]
 
+  @@index([categoryId])
+  @@index([shopId])
   @@map("products") // Maps this model to the "products" table in the database
 }
 
 model Order {
-  id            String        @id @default(uuid())
-  customerEmail String
-  status        OrderStatus   @default(PENDING)
-  totalAmount   Decimal       @db.Decimal(10, 2)
-  paymentMethod String
-  paymentStatus PaymentStatus @default(PENDING)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id              String        @id @default(uuid())
+  customerEmail   String
+  status          OrderStatus   @default(PENDING)
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  paymentMethod   String
+  paymentStatus   PaymentStatus @default(PENDING)
+  shippingAddress String?       @db.Text
+  shippingCity    String?
+  shippingZipCode String?
+  shippingPhone   String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   // Relations
   customer    Customer      @relation(fields: [customerEmail], references: [email])
   OrderItem   OrderItem[]
   Transaction Transaction[]
 
+  @@index([customerEmail])
   @@map("orders") // Maps this model to the "orders" table in the database
 }
 
@@ -162,6 +169,8 @@ model OrderItem {
   order   Order   @relation(fields: [orderId], references: [id])
   product Product @relation(fields: [productId], references: [id])
 
+  @@index([orderId])
+  @@index([productId])
   @@map("order_items") // Maps this model to the "order_items" table in the database
 }
 
@@ -172,10 +181,12 @@ model Transaction {
   amount        Decimal       @db.Decimal(10, 2)
   paymentStatus PaymentStatus @default(PENDING)
   createdAt     DateTime      @default(now())
+  updatedAt     DateTime?     @updatedAt
 
   // Relations
   order Order @relation(fields: [orderId], references: [id])
 
+  @@index([orderId])
   @@map("transactions") // Maps this model to the "transactions" table in the database
 }
 
@@ -191,6 +202,7 @@ model Review {
   product  Product  @relation(fields: [productId], references: [id])
   customer Customer @relation(fields: [customerEmail], references: [email])
 
+  @@index([productId])
   @@map("reviews") // Maps this model to the "reviews" table in the database
 }
 
@@ -204,6 +216,8 @@ model Follow {
   customer Customer @relation(fields: [customerEmail], references: [email])
   shop     Shop     @relation(fields: [shopId], references: [id])
 
+  @@unique([customerEmail, shopId])
+  @@index([shopId])
   @@map("follows") // Maps this model to the "follows" table in the database
 }
 
@@ -231,6 +245,9 @@ enum UserStatus {
 
 enum OrderStatus {
   PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
   COMPLETED
   CANCELLED
 }
