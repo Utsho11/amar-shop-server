@@ -281,9 +281,9 @@ const getFlashSaleProductsFromDB = async () => {
   return results;
 };
 
-const getReviewsFromDB = async (p_id: string, page = 1, limit = 10) => {
+const getReviewsFromDB = async (p_id: string, page = 1, limit = 50) => {
   const pageNum = Number(page) || 1;
-  const limitNum = Number(limit) || 10;
+  const limitNum = Number(limit) || 50;
 
   const result = await prisma.review.findMany({
     where: {
@@ -304,10 +304,6 @@ const getReviewsFromDB = async (p_id: string, page = 1, limit = 10) => {
     take: limitNum,
   });
 
-  const totalReviews = await prisma.review.count({
-    where: { productId: p_id },
-  });
-
   const simplifiedReviews = result.map((review) => ({
     id: review.id,
     rating: review.rating,
@@ -317,12 +313,7 @@ const getReviewsFromDB = async (p_id: string, page = 1, limit = 10) => {
     image: review.customer?.image || null,
   }));
 
-  return {
-    reviews: simplifiedReviews,
-    totalReviews,
-    page: pageNum,
-    limit: limitNum,
-  };
+  return simplifiedReviews;
 };
 
 export const ProductServices = {

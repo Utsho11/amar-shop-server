@@ -240,9 +240,9 @@ const getFlashSaleProductsFromDB = () => __awaiter(void 0, void 0, void 0, funct
     // console.log(results);
     return results;
 });
-const getReviewsFromDB = (p_id_1, ...args_1) => __awaiter(void 0, [p_id_1, ...args_1], void 0, function* (p_id, page = 1, limit = 10) {
+const getReviewsFromDB = (p_id_1, ...args_1) => __awaiter(void 0, [p_id_1, ...args_1], void 0, function* (p_id, page = 1, limit = 50) {
     const pageNum = Number(page) || 1;
-    const limitNum = Number(limit) || 10;
+    const limitNum = Number(limit) || 50;
     const result = yield prisma_1.default.review.findMany({
         where: {
             productId: p_id,
@@ -261,9 +261,6 @@ const getReviewsFromDB = (p_id_1, ...args_1) => __awaiter(void 0, [p_id_1, ...ar
         skip: (pageNum - 1) * limitNum,
         take: limitNum,
     });
-    const totalReviews = yield prisma_1.default.review.count({
-        where: { productId: p_id },
-    });
     const simplifiedReviews = result.map((review) => {
         var _a, _b;
         return ({
@@ -275,12 +272,7 @@ const getReviewsFromDB = (p_id_1, ...args_1) => __awaiter(void 0, [p_id_1, ...ar
             image: ((_b = review.customer) === null || _b === void 0 ? void 0 : _b.image) || null,
         });
     });
-    return {
-        reviews: simplifiedReviews,
-        totalReviews,
-        page: pageNum,
-        limit: limitNum,
-    };
+    return simplifiedReviews;
 });
 exports.ProductServices = {
     createProductIntoDB,
