@@ -64,19 +64,22 @@ const createOrderIntoDB = async (req: Request) => {
     });
   }
 
-  let finalAmount = calculatedSubtotal;
-
+  // Synchronize pricing, tax (5% VAT), and shipping fee calculation with checkout invoice
+  let discountedAmount = calculatedSubtotal;
   if (couponCode) {
     const coupon = await prisma.coupon.findUnique({
       where: { code: couponCode },
     });
     if (coupon && coupon.discountPercent > 0) {
-      finalAmount = finalAmount - (finalAmount * coupon.discountPercent) / 100;
+      discountedAmount = calculatedSubtotal - (calculatedSubtotal * coupon.discountPercent) / 100;
     }
   }
 
-  // Format to 2 decimal places
-  finalAmount = Math.max(0, Math.round(finalAmount * 100) / 100);
+  const isFreeShipping = calculatedSubtotal >= 100;
+  const shippingFee = verifiedItems.length === 0 || isFreeShipping ? 0 : 15;
+  const estimatedTax = discountedAmount * 0.05; // 5% VAT
+  let finalAmount = Math.max(0, discountedAmount + shippingFee + estimatedTax);
+  finalAmount = Math.round(finalAmount * 100) / 100;
 
   const transactionId = `TNX-${Date.now()}`;
 

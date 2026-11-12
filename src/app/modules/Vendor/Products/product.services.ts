@@ -138,16 +138,23 @@ const updateProductIntoDB = async (req: Request) => {
       payload.imageUrl = [file.path];
     }
 
-    // Never allow reassigning shopId
+    // Never allow tampering with system or relation fields
+    delete payload.id;
     delete payload.shopId;
-
-    const { id, ...updateData } = payload;
+    delete payload.shop;
+    delete payload.Review;
+    delete payload.OrderItem;
+    delete payload.averageRating;
+    delete payload.reviewCount;
+    delete payload.createdAt;
+    delete payload.updatedAt;
+    delete payload.isDeleted;
 
     const result = await prisma.product.update({
       where: {
-        id: payload.id,
+        id: isProductExist.id,
       },
-      data: updateData,
+      data: payload,
     });
 
     return result;

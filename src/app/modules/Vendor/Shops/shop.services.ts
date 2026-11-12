@@ -123,18 +123,27 @@ const updateShopIntoDB = async (req: Request) => {
       );
     }
 
-    // Prevent tampering with system flags
-    delete payload.vendorEmail;
-    delete payload.isBlacklisted;
-    delete payload.isDeleted;
-
-    const { id, ...updateData } = payload;
+    // Build sanitized update data to prevent schema injection or unknown fields
+    const validUpdateData: { name?: string; description?: string; logoUrl?: string } = {};
+    if (typeof payload.name === "string" && payload.name.trim()) {
+      validUpdateData.name = payload.name.trim();
+    }
+    if (typeof payload.description === "string") {
+      validUpdateData.description = payload.description.trim();
+    }
+    if (file?.path) {
+      validUpdateData.logoUrl = file.path;
+    } else if (typeof payload.logoUrl === "string" && payload.logoUrl.trim()) {
+      validUpdateData.logoUrl = payload.logoUrl.trim();
+    } else if (typeof payload.imageUrl === "string" && payload.imageUrl.trim()) {
+      validUpdateData.logoUrl = payload.imageUrl.trim();
+    }
 
     const result = await prisma.shop.update({
       where: {
         id: payload.id,
       },
-      data: updateData,
+      data: validUpdateData,
     });
 
     return result;

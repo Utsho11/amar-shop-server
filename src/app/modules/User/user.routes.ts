@@ -13,8 +13,8 @@ router.patch(
   "/update-user",
   auth(UserRole.ADMIN, UserRole.CUSTOMER, UserRole.VENDOR),
   fileUploader.single("file"),
-  validateRequest(UserValidation.updateUserSchema),
   parseBody,
+  validateRequest(UserValidation.updateUserSchema),
   UserControllers.updateMyProfie
 );
 

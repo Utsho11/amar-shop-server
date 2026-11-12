@@ -3,6 +3,8 @@ import prisma from "../../../shared/prisma";
 import { IAuthUser } from "../../interfaces/common";
 import { UserRole, UserStatus } from "@prisma/client";
 import { IFile } from "../../interfaces/file";
+import AppError from "../../errors/AppError";
+import httpStatus from "http-status";
 
 // const getAllUsersFromDB = async () => {
 //   try {
@@ -86,34 +88,49 @@ const updateUserIntoDB = async (user: IAuthUser, req: Request) => {
   });
 
   const file = req.file as IFile | undefined;
+  const payload = req.body || {};
 
-  const payload = req.body;
-  payload.image = file?.path;
+  const allowedData: { name?: string; phone?: string; image?: string } = {};
+  if (typeof payload.name === "string" && payload.name.trim()) {
+    allowedData.name = payload.name.trim();
+  }
+  if (typeof payload.phone === "string") {
+    allowedData.phone = payload.phone.trim();
+  }
+  if (file?.path) {
+    allowedData.image = file.path;
+  } else if (typeof payload.image === "string" && payload.image.trim()) {
+    allowedData.image = payload.image.trim();
+  }
 
   try {
     if (user?.role === UserRole.ADMIN) {
       const profileInfo = await prisma.admin.update({
         where: { email: userInfo.email },
-        data: payload,
+        data: allowedData,
       });
       return { ...profileInfo };
     }
     if (user?.role === UserRole.CUSTOMER) {
       const profileInfo = await prisma.customer.update({
         where: { email: userInfo.email },
-        data: payload,
+        data: allowedData,
       });
       return { ...profileInfo };
     }
     if (user?.role === UserRole.VENDOR) {
       const profileInfo = await prisma.vendor.update({
         where: { email: userInfo.email },
-        data: payload,
+        data: allowedData,
       });
       return { ...profileInfo };
     }
   } catch (error) {
-    throw new Error("Failed to update user!!!");
+    if (error instanceof AppError) {
+      throw error;
+    }
+    console.error("Failed to update user profile:", error);
+    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "Failed to update user profile!");
   }
 };
 
