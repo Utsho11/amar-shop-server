@@ -20,60 +20,120 @@ const confirmationService = async (
     return {
       isSuccess: false,
       redirectUrl: targetFailedUrl,
-      html: generateRedirectHtml("Payment Failed", "Transaction ID is missing. Redirecting to checkout...", targetFailedUrl, transactionId || "N/A", false),
+      html: generateRedirectHtml(
+        "Payment Failed",
+        "Transaction ID is missing. Redirecting to checkout...",
+        targetFailedUrl,
+        "N/A",
+        false
+      ),
+    };
+  }
+
+  // 1. Fetch existing transaction record with its parent order
+  const existingTrnx = await prisma.transaction.findUnique({
+    where: { transactionId },
+    include: { order: true },
+  });
+
+  if (!existingTrnx) {
+    return {
+      isSuccess: false,
+      redirectUrl: targetFailedUrl,
+      html: generateRedirectHtml(
+        "Payment Failed",
+        "Transaction record not found in system. Redirecting to checkout...",
+        targetFailedUrl,
+        transactionId,
+        false
+      ),
+    };
+  }
+
+  // 2. Idempotency Guard: If transaction is already marked PAID, return success without re-processing inventory
+  if (existingTrnx.paymentStatus === PaymentStatus.PAID) {
+    return {
+      isSuccess: true,
+      redirectUrl: targetSuccessUrl,
+      html: generateRedirectHtml(
+        "Payment Already Verified",
+        "Your payment has already been verified. Redirecting you to your orders...",
+        targetSuccessUrl,
+        transactionId,
+        true
+      ),
     };
   }
 
   let isPaymentSuccessful = false;
 
+  // 3. Cryptographic/Server-to-Server Gateway Verification
   if (
     normalizedStatus === "success" ||
     normalizedStatus === "valid" ||
     normalizedStatus === "validated"
   ) {
     try {
+      let verificationResponse: any = null;
+
       if (valId) {
-        const response = await verifyPayment(valId);
-        if (
-          response &&
-          (response.status === "VALID" ||
-            response.status === "VALIDATED" ||
-            response.status === "SUCCESS")
-        ) {
-          isPaymentSuccessful = true;
+        verificationResponse = await verifyPayment(valId);
+      } else {
+        verificationResponse = await verifyPaymentByTransactionId(transactionId);
+      }
+
+      const isValidStatus =
+        verificationResponse?.status === "VALID" ||
+        verificationResponse?.status === "VALIDATED" ||
+        verificationResponse?.element?.[0]?.status === "VALID" ||
+        verificationResponse?.element?.[0]?.status === "VALIDATED";
+
+      if (isValidStatus) {
+        // Enforce transaction ID match
+        const returnedTranId =
+          verificationResponse?.tran_id ||
+          verificationResponse?.element?.[0]?.tran_id;
+
+        if (returnedTranId && returnedTranId !== transactionId) {
+          console.error(
+            `[Security Violation] Transaction ID mismatch! Expected: ${transactionId}, Got: ${returnedTranId}`
+          );
+          isPaymentSuccessful = false;
         } else {
-          isPaymentSuccessful = true; // Sandbox fallback when status is success
+          // Enforce amount match (prevent parameter tampering on payment gateway)
+          const returnedAmount = parseFloat(
+            verificationResponse?.amount ||
+              verificationResponse?.currency_amount ||
+              verificationResponse?.element?.[0]?.amount ||
+              "0"
+          );
+          const expectedAmount = Number(existingTrnx.amount);
+
+          if (returnedAmount > 0 && Math.abs(returnedAmount - expectedAmount) > 1.0) {
+            console.error(
+              `[Security Violation] Payment amount mismatch! Expected: ${expectedAmount}, Got: ${returnedAmount}`
+            );
+            isPaymentSuccessful = false;
+          } else {
+            isPaymentSuccessful = true;
+          }
         }
       } else {
-        const response = await verifyPaymentByTransactionId(transactionId);
-        if (
-          response &&
-          (response.status === "VALID" ||
-            response.status === "VALIDATED" ||
-            response.status === "SUCCESS" ||
-            response.element?.[0]?.status === "VALID")
-        ) {
-          isPaymentSuccessful = true;
-        } else {
-          // If the gateway sent status=success in callback, accept it
-          isPaymentSuccessful = true;
-        }
+        console.warn(
+          "[Payment Failed] Gateway returned unverified status:",
+          verificationResponse
+        );
+        isPaymentSuccessful = false;
       }
     } catch (err) {
-      console.warn("Payment verification note:", err);
-      isPaymentSuccessful = true;
+      console.error("[Payment Error] Gateway verification request failed:", err);
+      isPaymentSuccessful = false;
     }
   }
 
   try {
-    const existingTrnx = await prisma.transaction.findUnique({
-      where: { transactionId },
-    });
-
-    if (isPaymentSuccessful && existingTrnx) {
+    if (isPaymentSuccessful) {
       await prisma.$transaction(async (tx) => {
-        const wasAlreadyPaid = existingTrnx.paymentStatus === PaymentStatus.PAID;
-
         await tx.transaction.update({
           where: { transactionId },
           data: { paymentStatus: PaymentStatus.PAID },
@@ -87,51 +147,59 @@ const confirmationService = async (
           },
         });
 
-        if (!wasAlreadyPaid) {
-          const orderItems = await tx.orderItem.findMany({
-            where: { orderId: existingTrnx.orderId },
-          });
+        const orderItems = await tx.orderItem.findMany({
+          where: { orderId: existingTrnx.orderId },
+        });
 
-          for (const item of orderItems) {
-            await tx.product.update({
-              where: { id: item.productId },
-              data: {
-                inventoryCount: {
-                  decrement: item.quantity,
-                },
+        for (const item of orderItems) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: {
+              inventoryCount: {
+                decrement: item.quantity,
               },
-            });
-          }
+            },
+          });
         }
       });
 
       return {
         isSuccess: true,
         redirectUrl: targetSuccessUrl,
-        html: generateRedirectHtml("Payment Successful!", "Your payment has been verified. Redirecting you to your orders...", targetSuccessUrl, transactionId, true),
+        html: generateRedirectHtml(
+          "Payment Successful!",
+          "Your payment has been verified. Redirecting you to your orders...",
+          targetSuccessUrl,
+          transactionId,
+          true
+        ),
       };
     } else {
-      if (existingTrnx) {
-        await prisma.$transaction(async (tx) => {
-          await tx.transaction.update({
-            where: { transactionId },
-            data: { paymentStatus: PaymentStatus.FAILED },
-          });
-
-          await tx.order.update({
-            where: { id: existingTrnx.orderId },
-            data: {
-              status: OrderStatus.CANCELLED,
-              paymentStatus: PaymentStatus.FAILED,
-            },
-          });
+      await prisma.$transaction(async (tx) => {
+        await tx.transaction.update({
+          where: { transactionId },
+          data: { paymentStatus: PaymentStatus.FAILED },
         });
-      }
+
+        await tx.order.update({
+          where: { id: existingTrnx.orderId },
+          data: {
+            status: OrderStatus.CANCELLED,
+            paymentStatus: PaymentStatus.FAILED,
+          },
+        });
+      });
 
       return {
         isSuccess: false,
         redirectUrl: targetFailedUrl,
-        html: generateRedirectHtml("Payment Failed or Cancelled", "Your transaction could not be completed. Redirecting to checkout...", targetFailedUrl, transactionId, false),
+        html: generateRedirectHtml(
+          "Payment Failed or Cancelled",
+          "Your transaction could not be verified or completed. Redirecting to checkout...",
+          targetFailedUrl,
+          transactionId,
+          false
+        ),
       };
     }
   } catch (error) {

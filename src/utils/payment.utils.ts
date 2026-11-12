@@ -59,7 +59,14 @@ export const initiatePayment = async (customerData: TCustomerData) => {
 };
 
 export const verifyPayment = async (valId: string) => {
-  const response = await axios.get(config.search_url!, {
+  const isSandbox = config.payment_url?.includes("sandbox") ?? true;
+  const baseUrl =
+    config.search_url ||
+    (isSandbox
+      ? "https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php"
+      : "https://securepay.sslcommerz.com/validator/api/validationserverAPI.php");
+
+  const response = await axios.get(baseUrl, {
     params: {
       val_id: valId,
       store_id: config.store_id || "testbox",
