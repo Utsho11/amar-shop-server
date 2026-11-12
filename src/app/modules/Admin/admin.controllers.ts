@@ -43,7 +43,7 @@ const blockShop = catchAsync(async (req, res) => {
 });
 
 const getAllTransactions = catchAsync(async (req, res) => {
-  const result = await AdminServices.getAllTransactionsFromDB();
+  const result = await AdminServices.getAllTransactionsFromDB(req);
 
   sendResponse(res, {
     statusCode: 200,

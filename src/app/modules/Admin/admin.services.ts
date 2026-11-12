@@ -148,7 +148,10 @@ const blockShopIntoDB = async (shop_id: string) => {
   }
 };
 
-const getAllTransactionsFromDB = async () => {
+const getAllTransactionsFromDB = async (req?: Request) => {
+  const page = Number(req?.query?.page) || 1;
+  const limit = Number(req?.query?.limit) || 20;
+
   const result = await prisma.transaction.findMany({
     select: {
       orderId: true,
@@ -157,6 +160,9 @@ const getAllTransactionsFromDB = async () => {
       paymentStatus: true,
       createdAt: true,
     },
+    orderBy: { createdAt: "desc" },
+    skip: (page - 1) * limit,
+    take: limit,
   });
 
   return result;
