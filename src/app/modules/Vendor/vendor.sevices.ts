@@ -317,7 +317,116 @@ const getVendorDashboardStatsFromDB = async (req: Request) => {
   };
 };
 
+
+const generateAiProductData = async (payload: { titleHint: string; categoryName?: string }) => {
+  const { titleHint, categoryName = "General" } = payload;
+
+  if (!titleHint || !titleHint.trim()) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Please provide a product title hint or keyword.");
+  }
+
+  const rawTitle = titleHint.trim();
+  const lowerTitle = rawTitle.toLowerCase();
+
+  let niche = "lifestyle";
+  let suggestedPrice = 1499;
+  let suggestedDiscount = 12;
+
+  if (
+    lowerTitle.includes("shirt") ||
+    lowerTitle.includes("panjabi") ||
+    lowerTitle.includes("dress") ||
+    lowerTitle.includes("pant") ||
+    lowerTitle.includes("jacket")
+  ) {
+    niche = "apparel";
+    suggestedPrice = 1850;
+    suggestedDiscount = 15;
+  } else if (
+    lowerTitle.includes("phone") ||
+    lowerTitle.includes("earbud") ||
+    lowerTitle.includes("watch") ||
+    lowerTitle.includes("laptop") ||
+    lowerTitle.includes("charger")
+  ) {
+    niche = "electronics";
+    suggestedPrice = 3200;
+    suggestedDiscount = 10;
+  } else if (
+    lowerTitle.includes("cream") ||
+    lowerTitle.includes("serum") ||
+    lowerTitle.includes("oil") ||
+    lowerTitle.includes("soap")
+  ) {
+    niche = "beauty";
+    suggestedPrice = 850;
+    suggestedDiscount = 5;
+  }
+
+  const capitalizedTitle = rawTitle
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+
+  const enhancedName = `Premium ${capitalizedTitle}`;
+
+  let description = "";
+
+  if (niche === "apparel") {
+    description = `Elevate your everyday wardrobe with the **${enhancedName}**. Crafted from premium, breathable fabric engineered for all-day comfort and enduring elegance. Whether you're heading to a casual outing or an evening gathering, this piece delivers the perfect blend of modern sophistication and timeless tailoring.
+
+### ✨ Key Highlights & Features:
+* **Breathable Fabric:** Ultra-soft, skin-friendly textile designed to keep you cool and comfortable in humid weather.
+* **Modern Tailoring:** Precision-stitched seams with a structured silhouette that complements every body type.
+* **Color Fastness:** Rich, fade-resistant dyes that retain vibrancy wash after wash.
+* **Versatile Styling:** Pairs effortlessly with formal trousers, casual chinos, or denim.
+
+### 🧵 Material & Care:
+* **Fabric Composition:** 100% Combed Cotton / Linen Blend.
+* **Care Instructions:** Machine wash cold with like colors. Tumble dry low or line dry in shade. Warm iron if necessary.`;
+  } else if (niche === "electronics") {
+    description = `Experience cutting-edge technology and seamless performance with the **${enhancedName}**. Designed for tech enthusiasts and everyday professionals who demand reliability, sleek ergonomics, and uncompromising performance.
+
+### ✨ Key Highlights & Features:
+* **High-Efficiency Core:** Built with high-grade components ensuring rapid responsiveness and long-term durability.
+* **Ergonomic & Portable:** Compact, lightweight form factor designed for effortless portability on the go.
+* **Extended Battery / Lifespan:** Optimized power management delivering hours of uninterrupted productivity.
+* **Universal Compatibility:** Works seamlessly across iOS, Android, macOS, and Windows ecosystems.
+
+### ⚙️ Technical Specifications:
+* **Build Material:** Matte Polycarbonate with reinforced alloy accents.
+* **Package Includes:** 1x ${enhancedName}, 1x Fast-Charging Cable, User Guide.`;
+  } else {
+    description = `Discover superior craftsmanship and exceptional everyday utility with the **${enhancedName}**. Meticulously developed to provide top-tier performance, premium aesthetics, and long-lasting quality.
+
+### ✨ Key Highlights & Features:
+* **Premium Grade Quality:** Manufactured adhering to strict quality benchmarks for maximum durability.
+* **Thoughtful Design:** Engineered for seamless daily usability and modern aesthetic appeal.
+* **Vendor Authenticity Guaranteed:** 100% genuine product backed by our verified vendor guarantee.
+
+### 📦 Package & Warranty:
+* **Includes:** Genuine branded product packaging and verified warranty card.
+* **Customer Support:** 7-day hassle-free replacement on manufacturer defects.`;
+  }
+
+  const tags = [
+    categoryName.toLowerCase(),
+    ...lowerTitle.split(" ").filter((w) => w.length > 3),
+    "bestseller",
+    "trending",
+  ];
+
+  return {
+    name: enhancedName,
+    description,
+    suggestedPrice,
+    suggestedDiscount,
+    tags,
+  };
+};
+
 export const VendorServices = {
+  generateAiProductData,
   getProductsFromDB,
   getOrderHistoryFromDB,
   updateOrderStatusIntoDB,

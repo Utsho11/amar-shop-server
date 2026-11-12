@@ -42,7 +42,19 @@ const getDashboardStats = catchAsync(async (req, res) => {
   });
 });
 
+
+const generateAiProduct = catchAsync(async (req, res) => {
+  const result = await VendorServices.generateAiProductData(req.body);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "AI Product copy generated successfully!",
+    data: result,
+  });
+});
+
 export const VendorControllers = {
+  generateAiProduct,
   getProducts,
   getOrderHistory,
   updateOrderStatus,

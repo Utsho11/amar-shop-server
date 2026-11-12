@@ -79,4 +79,11 @@ router.get(
   VendorControllers.getDashboardStats
 );
 
+
+router.post(
+  "/ai-generate-product",
+  auth(UserRole.VENDOR),
+  VendorControllers.generateAiProduct
+);
+
 export const VendorRoutes = router;
