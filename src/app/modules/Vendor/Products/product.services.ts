@@ -292,10 +292,28 @@ const getAllProductsFromDB = async (
         imageUrl: true,
         shop: { select: { id: true, name: true } },
         category: { select: { id: true, name: true } },
+        Review: { select: { rating: true } },
       },
       skip: (pageNumber - 1) * pageLimit,
       take: pageLimit,
       orderBy,
+    });
+
+    const formattedProducts = products.map((p: any) => {
+      const reviewList = p.Review || [];
+      const reviewCount = reviewList.length;
+      const totalRating = reviewList.reduce(
+        (acc: number, r: any) => acc + (r.rating || 0),
+        0
+      );
+      const averageRating =
+        reviewCount > 0 ? Math.round((totalRating / reviewCount) * 10) / 10 : 0;
+      const { Review, ...rest } = p;
+      return {
+        ...rest,
+        reviewCount,
+        averageRating,
+      };
     });
 
     const totalProducts = await prisma.product.count({ where });
@@ -303,7 +321,7 @@ const getAllProductsFromDB = async (
     const hasMore = pageNumber * pageLimit < totalProducts;
 
     return {
-      products,
+      products: formattedProducts,
       totalProducts,
       hasMore,
     };
@@ -385,11 +403,29 @@ const getFlashSaleProductsFromDB = async () => {
       },
       isDeleted: false,
     },
+    include: {
+      shop: { select: { id: true, name: true } },
+      category: { select: { id: true, name: true } },
+      Review: { select: { rating: true } },
+    },
   });
 
-  // console.log(results);
-
-  return results;
+  return results.map((p: any) => {
+    const reviewList = p.Review || [];
+    const reviewCount = reviewList.length;
+    const totalRating = reviewList.reduce(
+      (acc: number, r: any) => acc + (r.rating || 0),
+      0
+    );
+    const averageRating =
+      reviewCount > 0 ? Math.round((totalRating / reviewCount) * 10) / 10 : 0;
+    const { Review, ...rest } = p;
+    return {
+      ...rest,
+      reviewCount,
+      averageRating,
+    };
+  });
 };
 
 const getReviewsFromDB = async (p_id: string, page = 1, limit = 50) => {
