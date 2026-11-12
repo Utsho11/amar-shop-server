@@ -1,6 +1,8 @@
 import { Request } from "express";
 import prisma from "../../../shared/prisma";
 import { OrderStatus } from "@prisma/client";
+import AppError from "../../errors/AppError";
+import httpStatus from "http-status";
 
 const getProductsFromDB = async (req: Request) => {
   try {
@@ -55,6 +57,7 @@ const getOrderHistoryFromDB = async (req: Request) => {
       },
       select: {
         id: true,
+        status: true,
         quantity: true,
         price: true,
         product: {
@@ -95,7 +98,8 @@ const getOrderHistoryFromDB = async (req: Request) => {
       productName: item.product.name,
       productImage: item.product.imageUrl,
       productPrice: item.price || item.product.price,
-      orderStatus: item.order.status,
+      orderStatus: item.status || item.order.status,
+      overallOrderStatus: item.order.status,
       customerEmail: item.order.customerEmail,
       shippingAddress: item.order.shippingAddress,
       shippingCity: item.order.shippingCity,
@@ -116,35 +120,75 @@ const updateOrderStatusIntoDB = async (req: Request) => {
   const v_email = req.user.email;
 
   if (!Object.values(OrderStatus).includes(status)) {
-    throw new Error(`Invalid status. Must be one of: ${Object.values(OrderStatus).join(", ")}`);
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      `Invalid status. Must be one of: ${Object.values(OrderStatus).join(", ")}`
+    );
   }
 
-  // Ensure this vendor owns at least one product in this order
-  const orderExists = await prisma.order.findFirst({
+  // Ensure this vendor owns products in this order
+  const vendorItems = await prisma.orderItem.findMany({
     where: {
-      id: orderId,
-      OrderItem: {
-        some: {
-          product: {
-            shop: {
-              vendorEmail: v_email,
-            },
-          },
+      orderId: orderId,
+      product: {
+        shop: {
+          vendorEmail: v_email,
         },
       },
     },
   });
 
-  if (!orderExists) {
-    throw new Error("Order not found or you are not authorized to update this order.");
+  if (!vendorItems.length) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "Order not found or you are not authorized to update items in this order."
+    );
+  }
+
+  // Update only the line-items belonging to this vendor
+  await prisma.orderItem.updateMany({
+    where: {
+      orderId: orderId,
+      product: {
+        shop: {
+          vendorEmail: v_email,
+        },
+      },
+    },
+    data: {
+      status: status as OrderStatus,
+    },
+  });
+
+  // Calculate aggregate parent order fulfillment status
+  const allOrderItems = await prisma.orderItem.findMany({
+    where: { orderId: orderId },
+    select: { status: true },
+  });
+
+  const allStatuses = allOrderItems.map((i) => i.status);
+  let aggregateStatus = status as OrderStatus;
+
+  if (allStatuses.every((s) => s === OrderStatus.COMPLETED || s === OrderStatus.DELIVERED)) {
+    aggregateStatus = OrderStatus.DELIVERED;
+  } else if (allStatuses.some((s) => s === OrderStatus.SHIPPED)) {
+    aggregateStatus = OrderStatus.SHIPPED;
+  } else if (allStatuses.some((s) => s === OrderStatus.PROCESSING)) {
+    aggregateStatus = OrderStatus.PROCESSING;
+  } else if (allStatuses.every((s) => s === OrderStatus.CANCELLED)) {
+    aggregateStatus = OrderStatus.CANCELLED;
   }
 
   const updatedOrder = await prisma.order.update({
     where: { id: orderId },
-    data: { status: status as OrderStatus },
+    data: { status: aggregateStatus },
   });
 
-  return updatedOrder;
+  return {
+    orderId,
+    vendorUpdatedStatus: status,
+    parentOrderStatus: updatedOrder.status,
+  };
 };
 
 const getVendorDashboardStatsFromDB = async (req: Request) => {

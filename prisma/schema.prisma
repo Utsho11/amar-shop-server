@@ -176,12 +176,13 @@ model Order {
 }
 
 model OrderItem {
-  id         String  @id @default(uuid())
+  id         String      @id @default(uuid())
   orderId    String
   productId  String
   quantity   Int
-  price      Decimal @db.Decimal(10, 2)
-  isReviewed Boolean @default(false)
+  price      Decimal     @db.Decimal(10, 2)
+  isReviewed Boolean     @default(false)
+  status     OrderStatus @default(PENDING)
 
   // Relations
   order   Order   @relation(fields: [orderId], references: [id])
