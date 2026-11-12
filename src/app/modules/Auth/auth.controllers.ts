@@ -80,14 +80,14 @@ const forgotPassword = catchAsync(async (req, res) => {
 });
 
 const resetPassword = catchAsync(async (req, res) => {
-  const token = req.headers.authorization || "";
+  const token = (req.headers.authorization || req.body.token || req.query.token || "") as string;
 
   await AuthServices.resetPassword(token, req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: "Password Reset!",
+    message: "Password Reset Successfully!",
     data: null,
   });
 });
