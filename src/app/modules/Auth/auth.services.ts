@@ -20,14 +20,35 @@ interface IUserPayload {
 const createUser = async (req: Request) => {
   try {
     const file = req.file as IFile | undefined;
-    const { password, role } = req.body;
+    const { password, role = UserRole.CUSTOMER } = req.body;
     const { name, email, phone } = req.body.user;
+
+    // Disallow public registration of ADMIN role
+    if (role === UserRole.ADMIN || (role !== UserRole.CUSTOMER && role !== UserRole.VENDOR)) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "Admin accounts cannot be registered publicly!"
+      );
+    }
+
+    // Check if user already exists
+    const isUserExist = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
+
+    if (isUserExist) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "User with this email already exists!"
+      );
+    }
 
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Prepare user payload
-
     const userData = {
       email: email,
       password: hashedPassword,
@@ -41,22 +62,11 @@ const createUser = async (req: Request) => {
       image: file?.path, // Include image if uploaded
     };
 
-    // Create user in the database
-    // const user = await prisma.user.create({
-    //   data: userPayload,
-    // });
-
     const user = await prisma.$transaction(async (transactionClient) => {
       await transactionClient.user.create({
         data: userData,
       });
 
-      if (userData.role === UserRole.ADMIN) {
-        const createdAdminData = await transactionClient.admin.create({
-          data: userPayload,
-        });
-        return createdAdminData;
-      }
       if (userData.role === UserRole.CUSTOMER) {
         const createdCustomerData = await transactionClient.customer.create({
           data: userPayload,
@@ -64,15 +74,15 @@ const createUser = async (req: Request) => {
         return createdCustomerData;
       }
       if (userData.role === UserRole.VENDOR) {
-        const createdCustomerData = await transactionClient.vendor.create({
+        const createdVendorData = await transactionClient.vendor.create({
           data: userPayload,
         });
-        return createdCustomerData;
+        return createdVendorData;
       }
     });
 
     if (!user) {
-      throw new Error("User creation failed. Please try again.");
+      throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "User creation failed. Please try again.");
     }
 
     // Generate tokens
@@ -93,8 +103,11 @@ const createUser = async (req: Request) => {
       refreshToken,
     };
   } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
     console.error("Error creating user:", error);
-    throw new Error("User creation failed. Please try again.");
+    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "User creation failed. Please try again.");
   }
 };
 
