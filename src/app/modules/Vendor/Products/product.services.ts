@@ -2,6 +2,9 @@ import { IFile, IImageFiles } from "../../../interfaces/file";
 import prisma from "../../../../shared/prisma";
 import { Request } from "express";
 import type { TImageFiles } from "../../../interfaces/image.interface";
+import AppError from "../../../errors/AppError";
+import httpStatus from "http-status";
+import { UserRole } from "@prisma/client";
 
 type IProduct = {
   name: string;
@@ -30,11 +33,8 @@ interface PaginatedProducts {
 
 const createProductIntoDB = async (req: Request) => {
   try {
-  const imgUrls = req.files;
-  const { files } = imgUrls as TImageFiles;
-
-
-    // console.log(files);
+    const imgUrls = req.files;
+    const { files } = (imgUrls || {}) as TImageFiles;
 
     const payload = req.body;
     payload.imageUrl =
@@ -42,40 +42,53 @@ const createProductIntoDB = async (req: Request) => {
 
     const u_email = req.user.email;
 
-    const isCategoryExist = await prisma.category.findFirstOrThrow({
+    const isCategoryExist = await prisma.category.findFirst({
       where: {
         id: payload.categoryId,
         isDeleted: false,
       },
     });
 
-    const shopId = await prisma.shop.findFirst({
+    if (!isCategoryExist) {
+      throw new AppError(httpStatus.NOT_FOUND, "Category not found");
+    }
+
+    const shop = await prisma.shop.findFirst({
       where: {
         vendorEmail: u_email,
         isDeleted: false,
       },
     });
 
-    if (!isCategoryExist) {
-      throw new Error("Category not found");
+    if (!shop) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "Shop not found. Please create an active shop first."
+      );
     }
 
-    if (!shopId) {
-      throw new Error("Shop not found");
+    if (shop.isBlacklisted) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "Your shop is blacklisted. You cannot create products."
+      );
     }
 
-    payload.shopId = shopId.id;
-    payload.discount = Number(payload.discount);
-    payload.inventoryCount = Number(payload.inventoryCount);
-
-    console.log(payload);
+    // Strictly enforce shopId from verified vendor shop
+    payload.shopId = shop.id;
+    payload.price = Number(payload.price);
+    payload.discount = Number(payload.discount || 0);
+    payload.inventoryCount = Number(payload.inventoryCount || 0);
 
     const result = await prisma.product.create({ data: payload });
 
     return result;
   } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
     console.error("Error creating product:", error);
-    throw new Error("Product creation failed. Please try again.");
+    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "Product creation failed. Please try again.");
   }
 };
 
@@ -83,7 +96,37 @@ const updateProductIntoDB = async (req: Request) => {
   try {
     const payload = req.body;
     const file = req.file as IFile | undefined;
+    const user = req.user;
 
+    if (!payload.id) {
+      throw new AppError(httpStatus.BAD_REQUEST, "Product ID is required for update.");
+    }
+
+    const isProductExist = await prisma.product.findFirst({
+      where: {
+        id: payload.id,
+        isDeleted: false,
+      },
+      include: {
+        shop: true,
+      },
+    });
+
+    if (!isProductExist) {
+      throw new AppError(httpStatus.NOT_FOUND, "Product not found");
+    }
+
+    // Enforce tenant ownership: only product's shop owner or admin can update
+    if (user.role !== UserRole.ADMIN && isProductExist.shop?.vendorEmail !== user.email) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You do not have permission to update products from another shop!"
+      );
+    }
+
+    if (payload.price !== undefined) {
+      payload.price = Number(payload.price);
+    }
     if (payload.discount !== undefined) {
       payload.discount = Number(payload.discount);
     }
@@ -95,41 +138,52 @@ const updateProductIntoDB = async (req: Request) => {
       payload.imageUrl = [file.path];
     }
 
-    const isProductExist = await prisma.product.findFirst({
-      where: {
-        id: payload.id,
-        isDeleted: false,
-      },
-    });
+    // Never allow reassigning shopId
+    delete payload.shopId;
 
-    if (!isProductExist) {
-      throw new Error("Product not found");
-    }
+    const { id, ...updateData } = payload;
 
     const result = await prisma.product.update({
       where: {
         id: payload.id,
       },
-      data: payload,
+      data: updateData,
     });
 
     return result;
   } catch (error) {
-    throw new Error("Product update failed. Please try again.");
+    if (error instanceof AppError) {
+      throw error;
+    }
+    console.error("Error updating product:", error);
+    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "Product update failed. Please try again.");
   }
 };
 
-const deleteProductFromDB = async (product_id: string) => {
+const deleteProductFromDB = async (product_id: string, user: any) => {
   try {
-    const isProductExist = await prisma.product.findFirstOrThrow({
+    const isProductExist = await prisma.product.findFirst({
       where: {
         id: product_id,
         isDeleted: false,
       },
+      include: {
+        shop: true,
+      },
     });
+
     if (!isProductExist) {
-      throw new Error("Product not found");
+      throw new AppError(httpStatus.NOT_FOUND, "Product not found");
     }
+
+    // Enforce tenant ownership: only product's shop owner or admin can delete
+    if (user.role !== UserRole.ADMIN && isProductExist.shop?.vendorEmail !== user.email) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You do not have permission to delete products from another shop!"
+      );
+    }
+
     const result = await prisma.product.update({
       where: {
         id: product_id,
@@ -140,7 +194,11 @@ const deleteProductFromDB = async (product_id: string) => {
     });
     return result;
   } catch (error) {
-    throw new Error("Product deletion is failed. Please try again.");
+    if (error instanceof AppError) {
+      throw error;
+    }
+    console.error("Error deleting product:", error);
+    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "Product deletion failed. Please try again.");
   }
 };
 
@@ -279,31 +337,43 @@ const getSingleProductFromDB = async (p_id: string) => {
   }
 };
 
-const duplicateProductFromDB = async (p_id: string) => {
+const duplicateProductFromDB = async (p_id: string, user: any) => {
   try {
     const existingProduct = await prisma.product.findUnique({
       where: { id: p_id },
+      include: { shop: true },
     });
 
-    if (!existingProduct) {
-      throw new Error(`Product with ID ${p_id} not found`);
+    if (!existingProduct || existingProduct.isDeleted) {
+      throw new AppError(httpStatus.NOT_FOUND, `Product with ID ${p_id} not found`);
     }
 
-    // Remove unique fields or modify them
-    const { id, ...productData } = existingProduct;
+    // Enforce tenant ownership: only product's shop owner or admin can duplicate
+    if (user.role !== UserRole.ADMIN && existingProduct.shop?.vendorEmail !== user.email) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You do not have permission to duplicate products from another shop!"
+      );
+    }
 
-    // Create a duplicate product
+    // Remove unique and timestamp fields
+    const { id, createdAt, updatedAt, shop, ...productData } = existingProduct as any;
+
     const duplicatedProduct = await prisma.product.create({
       data: {
         ...productData,
-        name: `${existingProduct.name} (Copy)`, // Optionally modify the name
+        shopId: existingProduct.shopId,
+        name: `${existingProduct.name} (Copy)`,
       },
     });
 
-    // console.log("Duplicated Product:", duplicatedProduct);
     return duplicatedProduct;
   } catch (error) {
-    throw new Error("Duplicated Product Error!!!");
+    if (error instanceof AppError) {
+      throw error;
+    }
+    console.error("Error duplicating product:", error);
+    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "Duplicating product failed.");
   }
 };
 

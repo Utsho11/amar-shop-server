@@ -19,7 +19,7 @@ const createProduct = catchAsync(async (req, res) => {
 const deleteProduct = catchAsync(async (req, res) => {
   const { p_id } = req.params;
 
-  const result = await ProductServices.deleteProductFromDB(p_id);
+  const result = await ProductServices.deleteProductFromDB(p_id, req.user);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -60,7 +60,7 @@ const updateProduct = catchAsync(async (req, res) => {
 });
 
 const duplicateProduct = catchAsync(async (req, res) => {
-  const result = await ProductServices.duplicateProductFromDB(req.params.p_id);
+  const result = await ProductServices.duplicateProductFromDB(req.params.p_id, req.user);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
