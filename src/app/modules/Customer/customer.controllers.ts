@@ -1,6 +1,7 @@
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { CustomerServices } from "./customer.services";
+import httpStatus from "http-status";
 
 const createOrder = catchAsync(async (req, res) => {
   const result = await CustomerServices.createOrderIntoDB(req);
@@ -72,7 +73,20 @@ const getDashboardStats = catchAsync(async (req, res) => {
   });
 });
 
+
+const confirmCodOrder = catchAsync(async (req, res) => {
+  const { orderId } = req.params;
+  const result = await CustomerServices.confirmCodOrderIntoDB(orderId, req.user);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: result.message,
+    data: result,
+  });
+});
+
 export const CustomerControllers = {
+  confirmCodOrder,
   createOrder,
   getItemForReview,
   addReview,

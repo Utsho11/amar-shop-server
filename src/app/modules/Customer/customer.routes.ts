@@ -47,4 +47,11 @@ router.get(
   CustomerControllers.getDashboardStats
 );
 
+
+router.patch(
+  "/confirm-cod/:orderId",
+  auth(UserRole.CUSTOMER, UserRole.ADMIN),
+  CustomerControllers.confirmCodOrder
+);
+
 export const CustomerRoutes = router;

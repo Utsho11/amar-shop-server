@@ -80,10 +80,14 @@ const createOrderIntoDB = async (req: Request) => {
 
   const transactionId = `TNX-${Date.now()}`;
 
+  const isCashOnDelivery =
+    payload.paymentMethod === "COD" ||
+    payload.paymentMethod === "CashOnDelivery";
+
   const orderDataPayload = {
     customerEmail,
     totalAmount: finalAmount,
-    paymentMethod: "SSLCommerz",
+    paymentMethod: isCashOnDelivery ? "CashOnDelivery" : "SSLCommerz",
     paymentStatus: PaymentStatus.PENDING,
     status: OrderStatus.PENDING,
     shippingAddress: payload.shippingAddress || rest.shippingAddress || null,
@@ -110,6 +114,21 @@ const createOrderIntoDB = async (req: Request) => {
       ),
     );
 
+    // If COD, decrement inventory immediately with atomic safety guard
+    if (isCashOnDelivery) {
+      for (const item of verifiedItems) {
+        await transactionClient.product.updateMany({
+          where: {
+            id: item.productId,
+            inventoryCount: { gte: item.quantity },
+          },
+          data: {
+            inventoryCount: { decrement: item.quantity },
+          },
+        });
+      }
+    }
+
     const tranxData = {
       orderId: orderData.id,
       transactionId: transactionId,
@@ -129,8 +148,26 @@ const createOrderIntoDB = async (req: Request) => {
       phone: orderDataPayload.shippingPhone || "01700000000",
     };
 
-    return { customerData: customerData as TCustomerData };
+    return { orderId: orderData.id, customerData: customerData as TCustomerData };
   });
+
+  if (isCashOnDelivery) {
+    const rawPhone = (orderDataPayload.shippingPhone || customerDetails.phone || "01700000000").replace(/[^0-9]/g, "");
+    const cleanPhone = rawPhone.startsWith("88") ? rawPhone : `88${rawPhone}`;
+    const orderNum = transactionResult.orderId.slice(0, 8).toUpperCase();
+    const text = `Hello! Please confirm my Cash on Delivery order #${orderNum} on Amar Shop for ${finalAmount} BDT (${verifiedItems.length} items). Delivery address: ${orderDataPayload.shippingAddress}, ${orderDataPayload.shippingCity}.`;
+    const whatsappConfirmationUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+
+    return {
+      isCOD: true,
+      orderId: transactionResult.orderId,
+      transactionId,
+      totalAmount: finalAmount,
+      whatsappConfirmationUrl,
+      redirectUrl: `/customerDashboard/myOrder?cod=success&orderId=${transactionResult.orderId}`,
+      message: "Cash on Delivery order created successfully. Verification required before dispatch.",
+    };
+  }
 
   const paymentResponse = await initiatePayment(transactionResult.customerData);
 
@@ -408,7 +445,41 @@ const getCustomerDashboardStatsFromDB = async (req: Request) => {
   };
 };
 
+
+const confirmCodOrderIntoDB = async (orderId: string, user: any) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+  });
+
+  if (!order) {
+    throw new AppError(httpStatus.NOT_FOUND, "Order not found");
+  }
+
+  if (user.role !== "ADMIN" && order.customerEmail !== user.email) {
+    throw new AppError(httpStatus.FORBIDDEN, "You do not have permission to verify this order.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.PROCESSING },
+    });
+
+    await tx.orderItem.updateMany({
+      where: { orderId: orderId },
+      data: { status: OrderStatus.PROCESSING },
+    });
+  });
+
+  return {
+    orderId,
+    status: OrderStatus.PROCESSING,
+    message: "Cash on Delivery order successfully verified and moved to processing!",
+  };
+};
+
 export const CustomerServices = {
+  confirmCodOrderIntoDB,
   createOrderIntoDB,
   getItemForReviewFromDB,
   addReviewIntoDB,
