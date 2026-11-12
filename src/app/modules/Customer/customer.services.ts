@@ -2,6 +2,8 @@ import { Request } from "express";
 import prisma from "../../../shared/prisma";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { initiatePayment, TCustomerData } from "../../../utils/payment.utils";
+import AppError from "../../errors/AppError";
+import httpStatus from "http-status";
 
 type TOrderItemInput = {
   productId: string;
@@ -16,7 +18,7 @@ const createOrderIntoDB = async (req: Request) => {
   const customerEmail = req.user.email;
 
   if (!orderItemPayload.length) {
-    throw new Error("Cannot place an order with empty items.");
+    throw new AppError(httpStatus.BAD_REQUEST, "Cannot place an order with empty items.");
   }
 
   const customerDetails = await prisma.customer.findUnique({
@@ -26,7 +28,7 @@ const createOrderIntoDB = async (req: Request) => {
   });
 
   if (!customerDetails) {
-    throw new Error("Customer profile not found.");
+    throw new AppError(httpStatus.NOT_FOUND, "Customer profile not found.");
   }
 
   // Pre-validate stock and calculate secure server-side price
@@ -39,11 +41,12 @@ const createOrderIntoDB = async (req: Request) => {
     });
 
     if (!product) {
-      throw new Error(`Product not found or unavailable.`);
+      throw new AppError(httpStatus.NOT_FOUND, `Product not found or unavailable.`);
     }
 
     if (product.inventoryCount < item.quantity) {
-      throw new Error(
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
         `Insufficient stock for "${product.name}". Available: ${product.inventoryCount}`
       );
     }

@@ -152,14 +152,23 @@ const confirmationService = async (
         });
 
         for (const item of orderItems) {
-          await tx.product.update({
-            where: { id: item.productId },
+          const updateResult = await tx.product.updateMany({
+            where: {
+              id: item.productId,
+              inventoryCount: { gte: item.quantity },
+            },
             data: {
               inventoryCount: {
                 decrement: item.quantity,
               },
             },
           });
+
+          if (updateResult.count === 0) {
+            console.warn(
+              `[Inventory Depletion] Product ID ${item.productId} had insufficient stock during fulfillment for Order ${existingTrnx.orderId}.`
+            );
+          }
         }
       });
 
