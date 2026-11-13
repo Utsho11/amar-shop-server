@@ -15,6 +15,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.VendorServices = void 0;
 const prisma_1 = __importDefault(require("../../../shared/prisma"));
 const client_1 = require("@prisma/client");
+const AppError_1 = __importDefault(require("../../errors/AppError"));
+const http_status_1 = __importDefault(require("http-status"));
 const getProductsFromDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const v_email = req.user.email;
@@ -65,6 +67,7 @@ const getOrderHistoryFromDB = (req) => __awaiter(void 0, void 0, void 0, functio
             },
             select: {
                 id: true,
+                status: true,
                 quantity: true,
                 price: true,
                 product: {
@@ -106,7 +109,8 @@ const getOrderHistoryFromDB = (req) => __awaiter(void 0, void 0, void 0, functio
                 productName: item.product.name,
                 productImage: item.product.imageUrl,
                 productPrice: item.price || item.product.price,
-                orderStatus: item.order.status,
+                orderStatus: item.status || item.order.status,
+                overallOrderStatus: item.order.status,
                 customerEmail: item.order.customerEmail,
                 shippingAddress: item.order.shippingAddress,
                 shippingCity: item.order.shippingCity,
@@ -126,31 +130,64 @@ const updateOrderStatusIntoDB = (req) => __awaiter(void 0, void 0, void 0, funct
     const { status } = req.body;
     const v_email = req.user.email;
     if (!Object.values(client_1.OrderStatus).includes(status)) {
-        throw new Error(`Invalid status. Must be one of: ${Object.values(client_1.OrderStatus).join(", ")}`);
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, `Invalid status. Must be one of: ${Object.values(client_1.OrderStatus).join(", ")}`);
     }
-    // Ensure this vendor owns at least one product in this order
-    const orderExists = yield prisma_1.default.order.findFirst({
+    // Ensure this vendor owns products in this order
+    const vendorItems = yield prisma_1.default.orderItem.findMany({
         where: {
-            id: orderId,
-            OrderItem: {
-                some: {
-                    product: {
-                        shop: {
-                            vendorEmail: v_email,
-                        },
-                    },
+            orderId: orderId,
+            product: {
+                shop: {
+                    vendorEmail: v_email,
                 },
             },
         },
     });
-    if (!orderExists) {
-        throw new Error("Order not found or you are not authorized to update this order.");
+    if (!vendorItems.length) {
+        throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Order not found or you are not authorized to update items in this order.");
+    }
+    // Update only the line-items belonging to this vendor
+    yield prisma_1.default.orderItem.updateMany({
+        where: {
+            orderId: orderId,
+            product: {
+                shop: {
+                    vendorEmail: v_email,
+                },
+            },
+        },
+        data: {
+            status: status,
+        },
+    });
+    // Calculate aggregate parent order fulfillment status
+    const allOrderItems = yield prisma_1.default.orderItem.findMany({
+        where: { orderId: orderId },
+        select: { status: true },
+    });
+    const allStatuses = allOrderItems.map((i) => i.status);
+    let aggregateStatus = status;
+    if (allStatuses.every((s) => s === client_1.OrderStatus.COMPLETED || s === client_1.OrderStatus.DELIVERED)) {
+        aggregateStatus = client_1.OrderStatus.DELIVERED;
+    }
+    else if (allStatuses.some((s) => s === client_1.OrderStatus.SHIPPED)) {
+        aggregateStatus = client_1.OrderStatus.SHIPPED;
+    }
+    else if (allStatuses.some((s) => s === client_1.OrderStatus.PROCESSING)) {
+        aggregateStatus = client_1.OrderStatus.PROCESSING;
+    }
+    else if (allStatuses.every((s) => s === client_1.OrderStatus.CANCELLED)) {
+        aggregateStatus = client_1.OrderStatus.CANCELLED;
     }
     const updatedOrder = yield prisma_1.default.order.update({
         where: { id: orderId },
-        data: { status: status },
+        data: { status: aggregateStatus },
     });
-    return updatedOrder;
+    return {
+        orderId,
+        vendorUpdatedStatus: status,
+        parentOrderStatus: updatedOrder.status,
+    };
 });
 const getVendorDashboardStatsFromDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     const v_email = req.user.email;
@@ -258,7 +295,102 @@ const getVendorDashboardStatsFromDB = (req) => __awaiter(void 0, void 0, void 0,
         recentOrders,
     };
 });
+const generateAiProductData = (payload) => __awaiter(void 0, void 0, void 0, function* () {
+    const { titleHint, categoryName = "General" } = payload;
+    if (!titleHint || !titleHint.trim()) {
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "Please provide a product title hint or keyword.");
+    }
+    const rawTitle = titleHint.trim();
+    const lowerTitle = rawTitle.toLowerCase();
+    let niche = "lifestyle";
+    let suggestedPrice = 1499;
+    let suggestedDiscount = 12;
+    if (lowerTitle.includes("shirt") ||
+        lowerTitle.includes("panjabi") ||
+        lowerTitle.includes("dress") ||
+        lowerTitle.includes("pant") ||
+        lowerTitle.includes("jacket")) {
+        niche = "apparel";
+        suggestedPrice = 1850;
+        suggestedDiscount = 15;
+    }
+    else if (lowerTitle.includes("phone") ||
+        lowerTitle.includes("earbud") ||
+        lowerTitle.includes("watch") ||
+        lowerTitle.includes("laptop") ||
+        lowerTitle.includes("charger")) {
+        niche = "electronics";
+        suggestedPrice = 3200;
+        suggestedDiscount = 10;
+    }
+    else if (lowerTitle.includes("cream") ||
+        lowerTitle.includes("serum") ||
+        lowerTitle.includes("oil") ||
+        lowerTitle.includes("soap")) {
+        niche = "beauty";
+        suggestedPrice = 850;
+        suggestedDiscount = 5;
+    }
+    const capitalizedTitle = rawTitle
+        .split(" ")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ");
+    const enhancedName = `Premium ${capitalizedTitle}`;
+    let description = "";
+    if (niche === "apparel") {
+        description = `Elevate your everyday wardrobe with the **${enhancedName}**. Crafted from premium, breathable fabric engineered for all-day comfort and enduring elegance. Whether you're heading to a casual outing or an evening gathering, this piece delivers the perfect blend of modern sophistication and timeless tailoring.
+
+### ✨ Key Highlights & Features:
+* **Breathable Fabric:** Ultra-soft, skin-friendly textile designed to keep you cool and comfortable in humid weather.
+* **Modern Tailoring:** Precision-stitched seams with a structured silhouette that complements every body type.
+* **Color Fastness:** Rich, fade-resistant dyes that retain vibrancy wash after wash.
+* **Versatile Styling:** Pairs effortlessly with formal trousers, casual chinos, or denim.
+
+### 🧵 Material & Care:
+* **Fabric Composition:** 100% Combed Cotton / Linen Blend.
+* **Care Instructions:** Machine wash cold with like colors. Tumble dry low or line dry in shade. Warm iron if necessary.`;
+    }
+    else if (niche === "electronics") {
+        description = `Experience cutting-edge technology and seamless performance with the **${enhancedName}**. Designed for tech enthusiasts and everyday professionals who demand reliability, sleek ergonomics, and uncompromising performance.
+
+### ✨ Key Highlights & Features:
+* **High-Efficiency Core:** Built with high-grade components ensuring rapid responsiveness and long-term durability.
+* **Ergonomic & Portable:** Compact, lightweight form factor designed for effortless portability on the go.
+* **Extended Battery / Lifespan:** Optimized power management delivering hours of uninterrupted productivity.
+* **Universal Compatibility:** Works seamlessly across iOS, Android, macOS, and Windows ecosystems.
+
+### ⚙️ Technical Specifications:
+* **Build Material:** Matte Polycarbonate with reinforced alloy accents.
+* **Package Includes:** 1x ${enhancedName}, 1x Fast-Charging Cable, User Guide.`;
+    }
+    else {
+        description = `Discover superior craftsmanship and exceptional everyday utility with the **${enhancedName}**. Meticulously developed to provide top-tier performance, premium aesthetics, and long-lasting quality.
+
+### ✨ Key Highlights & Features:
+* **Premium Grade Quality:** Manufactured adhering to strict quality benchmarks for maximum durability.
+* **Thoughtful Design:** Engineered for seamless daily usability and modern aesthetic appeal.
+* **Vendor Authenticity Guaranteed:** 100% genuine product backed by our verified vendor guarantee.
+
+### 📦 Package & Warranty:
+* **Includes:** Genuine branded product packaging and verified warranty card.
+* **Customer Support:** 7-day hassle-free replacement on manufacturer defects.`;
+    }
+    const tags = [
+        categoryName.toLowerCase(),
+        ...lowerTitle.split(" ").filter((w) => w.length > 3),
+        "bestseller",
+        "trending",
+    ];
+    return {
+        name: enhancedName,
+        description,
+        suggestedPrice,
+        suggestedDiscount,
+        tags,
+    };
+});
 exports.VendorServices = {
+    generateAiProductData,
     getProductsFromDB,
     getOrderHistoryFromDB,
     updateOrderStatusIntoDB,

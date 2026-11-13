@@ -18,7 +18,7 @@ const prisma_1 = __importDefault(require("../../../shared/prisma"));
 const payment_utils_1 = require("../../../utils/payment.utils");
 const config_1 = __importDefault(require("../../../config"));
 const confirmationService = (transactionId, status, valId) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     const clientUrl = config_1.default.client_base_url || "https://amar-shop-client.vercel.app";
     const normalizedStatus = (status || "").toLowerCase();
     const targetSuccessUrl = `${clientUrl}/customerDashboard/myOrder?payment=success&tran_id=${transactionId || ""}`;
@@ -27,53 +27,83 @@ const confirmationService = (transactionId, status, valId) => __awaiter(void 0, 
         return {
             isSuccess: false,
             redirectUrl: targetFailedUrl,
-            html: generateRedirectHtml("Payment Failed", "Transaction ID is missing. Redirecting to checkout...", targetFailedUrl, transactionId || "N/A", false),
+            html: generateRedirectHtml("Payment Failed", "Transaction ID is missing. Redirecting to checkout...", targetFailedUrl, "N/A", false),
+        };
+    }
+    // 1. Fetch existing transaction record with its parent order
+    const existingTrnx = yield prisma_1.default.transaction.findUnique({
+        where: { transactionId },
+        include: { order: true },
+    });
+    if (!existingTrnx) {
+        return {
+            isSuccess: false,
+            redirectUrl: targetFailedUrl,
+            html: generateRedirectHtml("Payment Failed", "Transaction record not found in system. Redirecting to checkout...", targetFailedUrl, transactionId, false),
+        };
+    }
+    // 2. Idempotency Guard: If transaction is already marked PAID, return success without re-processing inventory
+    if (existingTrnx.paymentStatus === client_1.PaymentStatus.PAID) {
+        return {
+            isSuccess: true,
+            redirectUrl: targetSuccessUrl,
+            html: generateRedirectHtml("Payment Already Verified", "Your payment has already been verified. Redirecting you to your orders...", targetSuccessUrl, transactionId, true),
         };
     }
     let isPaymentSuccessful = false;
+    // 3. Cryptographic/Server-to-Server Gateway Verification
     if (normalizedStatus === "success" ||
         normalizedStatus === "valid" ||
         normalizedStatus === "validated") {
         try {
+            let verificationResponse = null;
             if (valId) {
-                const response = yield (0, payment_utils_1.verifyPayment)(valId);
-                if (response &&
-                    (response.status === "VALID" ||
-                        response.status === "VALIDATED" ||
-                        response.status === "SUCCESS")) {
-                    isPaymentSuccessful = true;
+                verificationResponse = yield (0, payment_utils_1.verifyPayment)(valId);
+            }
+            else {
+                verificationResponse = yield (0, payment_utils_1.verifyPaymentByTransactionId)(transactionId);
+            }
+            const isValidStatus = (verificationResponse === null || verificationResponse === void 0 ? void 0 : verificationResponse.status) === "VALID" ||
+                (verificationResponse === null || verificationResponse === void 0 ? void 0 : verificationResponse.status) === "VALIDATED" ||
+                ((_b = (_a = verificationResponse === null || verificationResponse === void 0 ? void 0 : verificationResponse.element) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.status) === "VALID" ||
+                ((_d = (_c = verificationResponse === null || verificationResponse === void 0 ? void 0 : verificationResponse.element) === null || _c === void 0 ? void 0 : _c[0]) === null || _d === void 0 ? void 0 : _d.status) === "VALIDATED";
+            if (isValidStatus) {
+                // Enforce transaction ID match
+                const returnedTranId = (verificationResponse === null || verificationResponse === void 0 ? void 0 : verificationResponse.tran_id) ||
+                    ((_f = (_e = verificationResponse === null || verificationResponse === void 0 ? void 0 : verificationResponse.element) === null || _e === void 0 ? void 0 : _e[0]) === null || _f === void 0 ? void 0 : _f.tran_id);
+                if (returnedTranId && returnedTranId !== transactionId) {
+                    console.error(`[Security Violation] Transaction ID mismatch! Expected: ${transactionId}, Got: ${returnedTranId}`);
+                    isPaymentSuccessful = false;
                 }
                 else {
-                    isPaymentSuccessful = true; // Sandbox fallback when status is success
+                    // Enforce amount match (prevent parameter tampering on payment gateway)
+                    const returnedAmount = parseFloat((verificationResponse === null || verificationResponse === void 0 ? void 0 : verificationResponse.amount) ||
+                        (verificationResponse === null || verificationResponse === void 0 ? void 0 : verificationResponse.currency_amount) ||
+                        ((_h = (_g = verificationResponse === null || verificationResponse === void 0 ? void 0 : verificationResponse.element) === null || _g === void 0 ? void 0 : _g[0]) === null || _h === void 0 ? void 0 : _h.amount) ||
+                        "0");
+                    const expectedAmount = Number(existingTrnx.amount);
+                    if (returnedAmount > 0 && Math.abs(returnedAmount - expectedAmount) > 1.0) {
+                        console.error(`[Security Violation] Payment amount mismatch! Expected: ${expectedAmount}, Got: ${returnedAmount}`);
+                        isPaymentSuccessful = false;
+                    }
+                    else {
+                        isPaymentSuccessful = true;
+                    }
                 }
             }
             else {
-                const response = yield (0, payment_utils_1.verifyPaymentByTransactionId)(transactionId);
-                if (response &&
-                    (response.status === "VALID" ||
-                        response.status === "VALIDATED" ||
-                        response.status === "SUCCESS" ||
-                        ((_b = (_a = response.element) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.status) === "VALID")) {
-                    isPaymentSuccessful = true;
-                }
-                else {
-                    // If the gateway sent status=success in callback, accept it
-                    isPaymentSuccessful = true;
-                }
+                console.warn("[Payment Failed] Gateway returned unverified status:", verificationResponse);
+                isPaymentSuccessful = false;
             }
         }
         catch (err) {
-            console.warn("Payment verification note:", err);
-            isPaymentSuccessful = true;
+            console.error("[Payment Error] Gateway verification request failed:", err);
+            isPaymentSuccessful = false;
         }
     }
     try {
-        const existingTrnx = yield prisma_1.default.transaction.findUnique({
-            where: { transactionId },
-        });
-        if (isPaymentSuccessful && existingTrnx) {
+        if (isPaymentSuccessful) {
             yield prisma_1.default.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
-                const wasAlreadyPaid = existingTrnx.paymentStatus === client_1.PaymentStatus.PAID;
                 yield tx.transaction.update({
                     where: { transactionId },
                     data: { paymentStatus: client_1.PaymentStatus.PAID },
@@ -85,19 +115,23 @@ const confirmationService = (transactionId, status, valId) => __awaiter(void 0, 
                         paymentStatus: client_1.PaymentStatus.PAID,
                     },
                 });
-                if (!wasAlreadyPaid) {
-                    const orderItems = yield tx.orderItem.findMany({
-                        where: { orderId: existingTrnx.orderId },
-                    });
-                    for (const item of orderItems) {
-                        yield tx.product.update({
-                            where: { id: item.productId },
-                            data: {
-                                inventoryCount: {
-                                    decrement: item.quantity,
-                                },
+                const orderItems = yield tx.orderItem.findMany({
+                    where: { orderId: existingTrnx.orderId },
+                });
+                for (const item of orderItems) {
+                    const updateResult = yield tx.product.updateMany({
+                        where: {
+                            id: item.productId,
+                            inventoryCount: { gte: item.quantity },
+                        },
+                        data: {
+                            inventoryCount: {
+                                decrement: item.quantity,
                             },
-                        });
+                        },
+                    });
+                    if (updateResult.count === 0) {
+                        console.warn(`[Inventory Depletion] Product ID ${item.productId} had insufficient stock during fulfillment for Order ${existingTrnx.orderId}.`);
                     }
                 }
             }));
@@ -108,25 +142,23 @@ const confirmationService = (transactionId, status, valId) => __awaiter(void 0, 
             };
         }
         else {
-            if (existingTrnx) {
-                yield prisma_1.default.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
-                    yield tx.transaction.update({
-                        where: { transactionId },
-                        data: { paymentStatus: client_1.PaymentStatus.FAILED },
-                    });
-                    yield tx.order.update({
-                        where: { id: existingTrnx.orderId },
-                        data: {
-                            status: client_1.OrderStatus.CANCELLED,
-                            paymentStatus: client_1.PaymentStatus.FAILED,
-                        },
-                    });
-                }));
-            }
+            yield prisma_1.default.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+                yield tx.transaction.update({
+                    where: { transactionId },
+                    data: { paymentStatus: client_1.PaymentStatus.FAILED },
+                });
+                yield tx.order.update({
+                    where: { id: existingTrnx.orderId },
+                    data: {
+                        status: client_1.OrderStatus.CANCELLED,
+                        paymentStatus: client_1.PaymentStatus.FAILED,
+                    },
+                });
+            }));
             return {
                 isSuccess: false,
                 redirectUrl: targetFailedUrl,
-                html: generateRedirectHtml("Payment Failed or Cancelled", "Your transaction could not be completed. Redirecting to checkout...", targetFailedUrl, transactionId, false),
+                html: generateRedirectHtml("Payment Failed or Cancelled", "Your transaction could not be verified or completed. Redirecting to checkout...", targetFailedUrl, transactionId, false),
             };
         }
     }

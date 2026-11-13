@@ -16,4 +16,5 @@ router.get("/myOrderHistory", (0, auth_1.default)(client_1.UserRole.CUSTOMER), c
 router.post("/wishlist/toggle", (0, auth_1.default)(client_1.UserRole.CUSTOMER), customer_controllers_1.CustomerControllers.toggleWishlist);
 router.get("/wishlist", (0, auth_1.default)(client_1.UserRole.CUSTOMER), customer_controllers_1.CustomerControllers.getMyWishlist);
 router.get("/dashboard-stats", (0, auth_1.default)(client_1.UserRole.CUSTOMER), customer_controllers_1.CustomerControllers.getDashboardStats);
+router.patch("/confirm-cod/:orderId", (0, auth_1.default)(client_1.UserRole.CUSTOMER, client_1.UserRole.ADMIN), customer_controllers_1.CustomerControllers.confirmCodOrder);
 exports.CustomerRoutes = router;

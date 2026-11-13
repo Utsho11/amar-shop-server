@@ -15,6 +15,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserServices = void 0;
 const prisma_1 = __importDefault(require("../../../shared/prisma"));
 const client_1 = require("@prisma/client");
+const AppError_1 = __importDefault(require("../../errors/AppError"));
+const http_status_1 = __importDefault(require("http-status"));
 // const getAllUsersFromDB = async () => {
 //   try {
 //     const result = await prisma.user.findMany({
@@ -92,33 +94,49 @@ const updateUserIntoDB = (user, req) => __awaiter(void 0, void 0, void 0, functi
         },
     });
     const file = req.file;
-    const payload = req.body;
-    payload.image = file === null || file === void 0 ? void 0 : file.path;
+    const payload = req.body || {};
+    const allowedData = {};
+    if (typeof payload.name === "string" && payload.name.trim()) {
+        allowedData.name = payload.name.trim();
+    }
+    if (typeof payload.phone === "string") {
+        allowedData.phone = payload.phone.trim();
+    }
+    if (file === null || file === void 0 ? void 0 : file.path) {
+        allowedData.image = file.path;
+    }
+    else if (typeof payload.image === "string" && payload.image.trim()) {
+        allowedData.image = payload.image.trim();
+    }
     try {
         if ((user === null || user === void 0 ? void 0 : user.role) === client_1.UserRole.ADMIN) {
             const profileInfo = yield prisma_1.default.admin.update({
                 where: { email: userInfo.email },
-                data: payload,
+                data: allowedData,
             });
             return Object.assign({}, profileInfo);
         }
         if ((user === null || user === void 0 ? void 0 : user.role) === client_1.UserRole.CUSTOMER) {
             const profileInfo = yield prisma_1.default.customer.update({
                 where: { email: userInfo.email },
-                data: payload,
+                data: allowedData,
             });
             return Object.assign({}, profileInfo);
         }
         if ((user === null || user === void 0 ? void 0 : user.role) === client_1.UserRole.VENDOR) {
             const profileInfo = yield prisma_1.default.vendor.update({
                 where: { email: userInfo.email },
-                data: payload,
+                data: allowedData,
             });
             return Object.assign({}, profileInfo);
         }
     }
     catch (error) {
-        throw new Error("Failed to update user!!!");
+        if (error instanceof AppError_1.default) {
+            throw error;
+        }
+        console.error("Failed to update user profile:", error);
+        throw new AppError_1.default(http_status_1.default.INTERNAL_SERVER_ERROR, "Failed to update user profile!");
     }
 });
 const getMyProfileFromDB = (user) => __awaiter(void 0, void 0, void 0, function* () {

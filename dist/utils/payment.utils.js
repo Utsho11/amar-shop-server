@@ -46,7 +46,13 @@ const initiatePayment = (customerData) => __awaiter(void 0, void 0, void 0, func
 });
 exports.initiatePayment = initiatePayment;
 const verifyPayment = (valId) => __awaiter(void 0, void 0, void 0, function* () {
-    const response = yield axios_1.default.get(config_1.default.search_url, {
+    var _a, _b;
+    const isSandbox = (_b = (_a = config_1.default.payment_url) === null || _a === void 0 ? void 0 : _a.includes("sandbox")) !== null && _b !== void 0 ? _b : true;
+    const baseUrl = config_1.default.search_url ||
+        (isSandbox
+            ? "https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php"
+            : "https://securepay.sslcommerz.com/validator/api/validationserverAPI.php");
+    const response = yield axios_1.default.get(baseUrl, {
         params: {
             val_id: valId,
             store_id: config_1.default.store_id || "testbox",

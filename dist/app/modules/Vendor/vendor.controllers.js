@@ -53,7 +53,17 @@ const getDashboardStats = (0, catchAsync_1.default)((req, res) => __awaiter(void
         data: result,
     });
 }));
+const generateAiProduct = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield vendor_sevices_1.VendorServices.generateAiProductData(req.body);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "AI Product copy generated successfully!",
+        data: result,
+    });
+}));
 exports.VendorControllers = {
+    generateAiProduct,
     getProducts,
     getOrderHistory,
     updateOrderStatus,

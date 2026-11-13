@@ -52,11 +52,12 @@ const updateCategoryIntoDB = async (req: Request) => {
     if (!isExistCategory) {
       throw new AppError(httpStatus.NOT_FOUND, "Category not found");
     }
-    let updatedCategory = req.body;
+    let updatedCategory = { ...req.body };
     const file = req.file as IFile | undefined;
     if (file) {
       updatedCategory.logoUrl = file.path;
     }
+    delete updatedCategory.id;
     const result = await prisma.category.update({
       where: {
         id: payload.id,
@@ -102,6 +103,9 @@ const deleteCategoryFromDB = async (category_id: string) => {
 const getAllCategoriesFromDB = async () => {
   try {
     const results = await prisma.category.findMany({
+      where: {
+        isDeleted: false,
+      },
       select: {
         id: true,
         name: true,

@@ -14,15 +14,27 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ShopServices = void 0;
 const prisma_1 = __importDefault(require("../../../../shared/prisma"));
+const AppError_1 = __importDefault(require("../../../errors/AppError"));
+const http_status_1 = __importDefault(require("http-status"));
+const client_1 = require("@prisma/client");
 const createShopIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const file = req.file;
         const { name, description } = req.body;
         // Validate required fields
         if (!name || !description) {
-            throw new Error("Missing required fields.");
+            throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "Missing required fields.");
         }
         const u_email = req.user.email;
+        const existingShop = yield prisma_1.default.shop.findFirst({
+            where: {
+                vendorEmail: u_email,
+                isDeleted: false,
+            },
+        });
+        if (existingShop) {
+            throw new AppError_1.default(http_status_1.default.CONFLICT, "You already have an active registered shop!");
+        }
         // Prepare user payload
         const shopPayload = {
             name,
@@ -30,15 +42,17 @@ const createShopIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* ()
             description,
             logoUrl: file === null || file === void 0 ? void 0 : file.path,
         };
-        // Create user in the database
         const result = yield prisma_1.default.shop.create({
             data: shopPayload,
         });
         return result;
     }
     catch (error) {
+        if (error instanceof AppError_1.default) {
+            throw error;
+        }
         console.error("Error creating Shop:", error);
-        throw new Error("Shop creation failed. Please try again.");
+        throw new AppError_1.default(http_status_1.default.INTERNAL_SERVER_ERROR, "Shop creation failed. Please try again.");
     }
 });
 const getMyShopFromDB = (vendorEmail) => __awaiter(void 0, void 0, void 0, function* () {
@@ -65,35 +79,64 @@ const getMyShopFromDB = (vendorEmail) => __awaiter(void 0, void 0, void 0, funct
     }
     catch (error) {
         console.error(`Error fetching shop for vendor email: ${vendorEmail}`, error);
-        throw new Error("Failed to fetch shop. Please try again later.");
+        throw new AppError_1.default(http_status_1.default.INTERNAL_SERVER_ERROR, "Failed to fetch shop. Please try again later.");
     }
 });
 const updateShopIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const payload = req.body;
         const file = req.file;
-        if (file) {
-            payload.imageUrl = file === null || file === void 0 ? void 0 : file.path;
+        const user = req.user;
+        if (!payload.id) {
+            throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "Shop ID is required for update.");
         }
-        const isProductExist = yield prisma_1.default.shop.findFirst({
+        if (file) {
+            payload.logoUrl = file === null || file === void 0 ? void 0 : file.path;
+        }
+        const isShopExist = yield prisma_1.default.shop.findFirst({
             where: {
                 id: payload.id,
                 isDeleted: false,
             },
         });
-        if (!isProductExist) {
-            throw new Error("Shop not found");
+        if (!isShopExist) {
+            throw new AppError_1.default(http_status_1.default.NOT_FOUND, "Shop not found");
+        }
+        // Enforce tenant ownership: only the shop vendor or an admin can update
+        if (user.role !== client_1.UserRole.ADMIN && isShopExist.vendorEmail !== user.email) {
+            throw new AppError_1.default(http_status_1.default.FORBIDDEN, "You do not have permission to update this shop!");
+        }
+        // Build sanitized update data to prevent schema injection or unknown fields
+        const validUpdateData = {};
+        if (typeof payload.name === "string" && payload.name.trim()) {
+            validUpdateData.name = payload.name.trim();
+        }
+        if (typeof payload.description === "string") {
+            validUpdateData.description = payload.description.trim();
+        }
+        if (file === null || file === void 0 ? void 0 : file.path) {
+            validUpdateData.logoUrl = file.path;
+        }
+        else if (typeof payload.logoUrl === "string" && payload.logoUrl.trim()) {
+            validUpdateData.logoUrl = payload.logoUrl.trim();
+        }
+        else if (typeof payload.imageUrl === "string" && payload.imageUrl.trim()) {
+            validUpdateData.logoUrl = payload.imageUrl.trim();
         }
         const result = yield prisma_1.default.shop.update({
             where: {
                 id: payload.id,
             },
-            data: payload,
+            data: validUpdateData,
         });
         return result;
     }
     catch (error) {
-        throw new Error("Failed to update shop. Please try again later.");
+        if (error instanceof AppError_1.default) {
+            throw error;
+        }
+        console.error("Failed to update shop:", error);
+        throw new AppError_1.default(http_status_1.default.INTERNAL_SERVER_ERROR, "Failed to update shop. Please try again later.");
     }
 });
 const getSingleShopFromDB = (shopId) => __awaiter(void 0, void 0, void 0, function* () {

@@ -16,6 +16,7 @@ exports.CustomerControllers = void 0;
 const catchAsync_1 = __importDefault(require("../../../shared/catchAsync"));
 const sendResponse_1 = __importDefault(require("../../../shared/sendResponse"));
 const customer_services_1 = require("./customer.services");
+const http_status_1 = __importDefault(require("http-status"));
 const createOrder = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield customer_services_1.CustomerServices.createOrderIntoDB(req);
     (0, sendResponse_1.default)(res, {
@@ -79,7 +80,18 @@ const getDashboardStats = (0, catchAsync_1.default)((req, res) => __awaiter(void
         data: result,
     });
 }));
+const confirmCodOrder = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { orderId } = req.params;
+    const result = yield customer_services_1.CustomerServices.confirmCodOrderIntoDB(orderId, req.user);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: result.message,
+        data: result,
+    });
+}));
 exports.CustomerControllers = {
+    confirmCodOrder,
     createOrder,
     getItemForReview,
     addReview,

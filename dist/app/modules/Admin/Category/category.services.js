@@ -53,11 +53,12 @@ const updateCategoryIntoDB = (req) => __awaiter(void 0, void 0, void 0, function
         if (!isExistCategory) {
             throw new AppError_1.default(http_status_1.default.NOT_FOUND, "Category not found");
         }
-        let updatedCategory = req.body;
+        let updatedCategory = Object.assign({}, req.body);
         const file = req.file;
         if (file) {
             updatedCategory.logoUrl = file.path;
         }
+        delete updatedCategory.id;
         const result = yield prisma_1.default.category.update({
             where: {
                 id: payload.id,
@@ -100,6 +101,9 @@ const deleteCategoryFromDB = (category_id) => __awaiter(void 0, void 0, void 0, 
 const getAllCategoriesFromDB = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const results = yield prisma_1.default.category.findMany({
+            where: {
+                isDeleted: false,
+            },
             select: {
                 id: true,
                 name: true,

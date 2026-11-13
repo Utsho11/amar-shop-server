@@ -80,12 +80,12 @@ const forgotPassword = (0, catchAsync_1.default)((req, res) => __awaiter(void 0,
     });
 }));
 const resetPassword = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const token = req.headers.authorization || "";
+    const token = (req.headers.authorization || req.body.token || req.query.token || "");
     yield auth_services_1.AuthServices.resetPassword(token, req.body);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
-        message: "Password Reset!",
+        message: "Password Reset Successfully!",
         data: null,
     });
 }));

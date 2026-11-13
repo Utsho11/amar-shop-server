@@ -24,8 +24,21 @@ const emailSender_1 = __importDefault(require("./emailSender"));
 const createUser = (req) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const file = req.file;
-        const { password, role } = req.body;
+        const { password, role = client_1.UserRole.CUSTOMER } = req.body;
         const { name, email, phone } = req.body.user;
+        // Disallow public registration of ADMIN role
+        if (role === client_1.UserRole.ADMIN || (role !== client_1.UserRole.CUSTOMER && role !== client_1.UserRole.VENDOR)) {
+            throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Admin accounts cannot be registered publicly!");
+        }
+        // Check if user already exists
+        const isUserExist = yield prisma_1.default.user.findUnique({
+            where: {
+                email: email,
+            },
+        });
+        if (isUserExist) {
+            throw new AppError_1.default(http_status_1.default.CONFLICT, "User with this email already exists!");
+        }
         // Hash the password
         const hashedPassword = yield bcrypt_1.default.hash(password, 12);
         // Prepare user payload
@@ -40,20 +53,10 @@ const createUser = (req) => __awaiter(void 0, void 0, void 0, function* () {
             phone,
             image: file === null || file === void 0 ? void 0 : file.path, // Include image if uploaded
         };
-        // Create user in the database
-        // const user = await prisma.user.create({
-        //   data: userPayload,
-        // });
         const user = yield prisma_1.default.$transaction((transactionClient) => __awaiter(void 0, void 0, void 0, function* () {
             yield transactionClient.user.create({
                 data: userData,
             });
-            if (userData.role === client_1.UserRole.ADMIN) {
-                const createdAdminData = yield transactionClient.admin.create({
-                    data: userPayload,
-                });
-                return createdAdminData;
-            }
             if (userData.role === client_1.UserRole.CUSTOMER) {
                 const createdCustomerData = yield transactionClient.customer.create({
                     data: userPayload,
@@ -61,14 +64,14 @@ const createUser = (req) => __awaiter(void 0, void 0, void 0, function* () {
                 return createdCustomerData;
             }
             if (userData.role === client_1.UserRole.VENDOR) {
-                const createdCustomerData = yield transactionClient.vendor.create({
+                const createdVendorData = yield transactionClient.vendor.create({
                     data: userPayload,
                 });
-                return createdCustomerData;
+                return createdVendorData;
             }
         }));
         if (!user) {
-            throw new Error("User creation failed. Please try again.");
+            throw new AppError_1.default(http_status_1.default.INTERNAL_SERVER_ERROR, "User creation failed. Please try again.");
         }
         // Generate tokens
         const accessToken = jwtHelpers_1.jwtHelpers.generateToken({ id: user.id, email: user.email, role: userData.role }, // Secure token payload
@@ -80,8 +83,11 @@ const createUser = (req) => __awaiter(void 0, void 0, void 0, function* () {
         };
     }
     catch (error) {
+        if (error instanceof AppError_1.default) {
+            throw error;
+        }
         console.error("Error creating user:", error);
-        throw new Error("User creation failed. Please try again.");
+        throw new AppError_1.default(http_status_1.default.INTERNAL_SERVER_ERROR, "User creation failed. Please try again.");
     }
 });
 const loginUser = (payload) => __awaiter(void 0, void 0, void 0, function* () {
@@ -157,52 +163,74 @@ const changePassword = (user, payload) => __awaiter(void 0, void 0, void 0, func
     };
 });
 const forgotPassword = (payload) => __awaiter(void 0, void 0, void 0, function* () {
-    const userData = yield prisma_1.default.user.findUniqueOrThrow({
+    const userData = yield prisma_1.default.user.findUnique({
         where: {
             email: payload.email,
             status: client_1.UserStatus.ACTIVE,
         },
     });
-    const resetPassToken = jwtHelpers_1.jwtHelpers.generateToken({ email: userData.email, role: userData.role }, config_1.default.reset_pass_secret, config_1.default.reset_pass_secret_expire_in);
-    //console.log(resetPassToken)
+    if (!userData) {
+        // Avoid user enumeration
+        return;
+    }
+    const resetPassToken = jwtHelpers_1.jwtHelpers.generateToken({ id: userData.id, email: userData.email, role: userData.role }, config_1.default.reset_pass_secret, config_1.default.reset_pass_secret_expire_in);
     const resetPassLink = config_1.default.reset_pass_link + `?userId=${userData.id}&token=${resetPassToken}`;
     yield (0, emailSender_1.default)(userData.email, `
       <div>
           <p>Dear User,</p>
-          <p>Your password reset link 
-              <a href=${resetPassLink}>
-                  <button>
-                      Reset Password
-                  </button>
+          <p>Your password reset link:
+              <a href="${resetPassLink}">
+                  <button>Reset Password</button>
               </a>
           </p>
-
+          <p>This link is valid for a limited time. If you did not request this, please ignore this email.</p>
       </div>
       `);
-    //console.log(resetPassLink)
 });
 const resetPassword = (token, payload) => __awaiter(void 0, void 0, void 0, function* () {
-    // console.log({ token, payload });
-    const userData = yield prisma_1.default.user.findUniqueOrThrow({
+    if (!token) {
+        throw new AppError_1.default(http_status_1.default.UNAUTHORIZED, "Reset token is required!");
+    }
+    if (!payload.password) {
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "New password is required!");
+    }
+    const cleanToken = token.startsWith("Bearer ")
+        ? token.slice(7).trim()
+        : token.trim();
+    let decodedToken;
+    try {
+        decodedToken = jwtHelpers_1.jwtHelpers.verifyToken(cleanToken, config_1.default.reset_pass_secret);
+    }
+    catch (err) {
+        throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Invalid or expired reset token!");
+    }
+    if (!decodedToken || !decodedToken.email) {
+        throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Invalid reset token claims!");
+    }
+    // Derive target user strictly by token email/id to prevent IDOR
+    const userData = yield prisma_1.default.user.findUnique({
         where: {
-            id: payload.userId,
+            email: decodedToken.email,
             status: client_1.UserStatus.ACTIVE,
         },
     });
-    // console.log(userData);
-    const isValidToken = jwtHelpers_1.jwtHelpers.verifyToken(token, config_1.default.reset_pass_secret);
-    if (!isValidToken) {
-        throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Forbidden!");
+    if (!userData) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, "User associated with reset token not found!");
     }
-    // hash password
-    const password = yield bcrypt_1.default.hash(payload.password, 12);
-    // update into database
+    // Enforce that if payload.userId is provided, it must match the token's authenticated user
+    if (payload.userId && payload.userId !== userData.id) {
+        throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Token does not match target user ID!");
+    }
+    // Hash new password
+    const hashedPassword = yield bcrypt_1.default.hash(payload.password, 12);
+    // Update password in database
     yield prisma_1.default.user.update({
         where: {
-            id: payload.userId,
+            id: userData.id,
         },
         data: {
-            password,
+            password: hashedPassword,
+            needPasswordChange: false,
         },
     });
 });

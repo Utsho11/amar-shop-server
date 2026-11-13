@@ -28,7 +28,7 @@ const createProduct = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, 
 }));
 const deleteProduct = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { p_id } = req.params;
-    const result = yield product_services_1.ProductServices.deleteProductFromDB(p_id);
+    const result = yield product_services_1.ProductServices.deleteProductFromDB(p_id, req.user);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
@@ -64,7 +64,7 @@ const updateProduct = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, 
     });
 }));
 const duplicateProduct = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield product_services_1.ProductServices.duplicateProductFromDB(req.params.p_id);
+    const result = yield product_services_1.ProductServices.duplicateProductFromDB(req.params.p_id, req.user);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,

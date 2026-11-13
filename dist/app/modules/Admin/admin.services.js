@@ -155,7 +155,10 @@ const blockShopIntoDB = (shop_id) => __awaiter(void 0, void 0, void 0, function*
         throw new Error("Failed to block shop!!!");
     }
 });
-const getAllTransactionsFromDB = () => __awaiter(void 0, void 0, void 0, function* () {
+const getAllTransactionsFromDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    const page = Number((_a = req === null || req === void 0 ? void 0 : req.query) === null || _a === void 0 ? void 0 : _a.page) || 1;
+    const limit = Number((_b = req === null || req === void 0 ? void 0 : req.query) === null || _b === void 0 ? void 0 : _b.limit) || 20;
     const result = yield prisma_1.default.transaction.findMany({
         select: {
             orderId: true,
@@ -164,6 +167,9 @@ const getAllTransactionsFromDB = () => __awaiter(void 0, void 0, void 0, functio
             paymentStatus: true,
             createdAt: true,
         },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
     });
     return result;
 });

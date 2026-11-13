@@ -27,13 +27,15 @@ exports.CustomerServices = void 0;
 const prisma_1 = __importDefault(require("../../../shared/prisma"));
 const client_1 = require("@prisma/client");
 const payment_utils_1 = require("../../../utils/payment.utils");
+const AppError_1 = __importDefault(require("../../errors/AppError"));
+const http_status_1 = __importDefault(require("http-status"));
 const createOrderIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* () {
     const payload = req.body;
     const { OrderItem, couponCode } = payload, rest = __rest(payload, ["OrderItem", "couponCode"]);
     const orderItemPayload = (OrderItem === null || OrderItem === void 0 ? void 0 : OrderItem.data) || [];
     const customerEmail = req.user.email;
     if (!orderItemPayload.length) {
-        throw new Error("Cannot place an order with empty items.");
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "Cannot place an order with empty items.");
     }
     const customerDetails = yield prisma_1.default.customer.findUnique({
         where: {
@@ -41,7 +43,7 @@ const createOrderIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* (
         },
     });
     if (!customerDetails) {
-        throw new Error("Customer profile not found.");
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, "Customer profile not found.");
     }
     // Pre-validate stock and calculate secure server-side price
     let calculatedSubtotal = 0;
@@ -51,10 +53,10 @@ const createOrderIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* (
             where: { id: item.productId, isDeleted: false },
         });
         if (!product) {
-            throw new Error(`Product not found or unavailable.`);
+            throw new AppError_1.default(http_status_1.default.NOT_FOUND, `Product not found or unavailable.`);
         }
         if (product.inventoryCount < item.quantity) {
-            throw new Error(`Insufficient stock for "${product.name}". Available: ${product.inventoryCount}`);
+            throw new AppError_1.default(http_status_1.default.BAD_REQUEST, `Insufficient stock for "${product.name}". Available: ${product.inventoryCount}`);
         }
         const originalPrice = Number(product.price);
         const discount = product.discount || 0;
@@ -66,22 +68,28 @@ const createOrderIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* (
             price: itemPrice,
         });
     }
-    let finalAmount = calculatedSubtotal;
+    // Synchronize pricing, tax (5% VAT), and shipping fee calculation with checkout invoice
+    let discountedAmount = calculatedSubtotal;
     if (couponCode) {
         const coupon = yield prisma_1.default.coupon.findUnique({
             where: { code: couponCode },
         });
         if (coupon && coupon.discountPercent > 0) {
-            finalAmount = finalAmount - (finalAmount * coupon.discountPercent) / 100;
+            discountedAmount = calculatedSubtotal - (calculatedSubtotal * coupon.discountPercent) / 100;
         }
     }
-    // Format to 2 decimal places
-    finalAmount = Math.max(0, Math.round(finalAmount * 100) / 100);
+    const isFreeShipping = calculatedSubtotal >= 100;
+    const shippingFee = verifiedItems.length === 0 || isFreeShipping ? 0 : 15;
+    const estimatedTax = discountedAmount * 0.05; // 5% VAT
+    let finalAmount = Math.max(0, discountedAmount + shippingFee + estimatedTax);
+    finalAmount = Math.round(finalAmount * 100) / 100;
     const transactionId = `TNX-${Date.now()}`;
+    const isCashOnDelivery = payload.paymentMethod === "COD" ||
+        payload.paymentMethod === "CashOnDelivery";
     const orderDataPayload = {
         customerEmail,
         totalAmount: finalAmount,
-        paymentMethod: "SSLCommerz",
+        paymentMethod: isCashOnDelivery ? "CashOnDelivery" : "SSLCommerz",
         paymentStatus: client_1.PaymentStatus.PENDING,
         status: client_1.OrderStatus.PENDING,
         shippingAddress: payload.shippingAddress || rest.shippingAddress || null,
@@ -103,6 +111,20 @@ const createOrderIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* (
                 },
             });
         })));
+        // If COD, decrement inventory immediately with atomic safety guard
+        if (isCashOnDelivery) {
+            for (const item of verifiedItems) {
+                yield transactionClient.product.updateMany({
+                    where: {
+                        id: item.productId,
+                        inventoryCount: { gte: item.quantity },
+                    },
+                    data: {
+                        inventoryCount: { decrement: item.quantity },
+                    },
+                });
+            }
+        }
         const tranxData = {
             orderId: orderData.id,
             transactionId: transactionId,
@@ -119,8 +141,24 @@ const createOrderIntoDB = (req) => __awaiter(void 0, void 0, void 0, function* (
             transactionId: transactionId,
             phone: orderDataPayload.shippingPhone || "01700000000",
         };
-        return { customerData: customerData };
+        return { orderId: orderData.id, customerData: customerData };
     }));
+    if (isCashOnDelivery) {
+        const rawPhone = (orderDataPayload.shippingPhone || customerDetails.phone || "01700000000").replace(/[^0-9]/g, "");
+        const cleanPhone = rawPhone.startsWith("88") ? rawPhone : `88${rawPhone}`;
+        const orderNum = transactionResult.orderId.slice(0, 8).toUpperCase();
+        const text = `Hello! Please confirm my Cash on Delivery order #${orderNum} on Amar Shop for ${finalAmount} BDT (${verifiedItems.length} items). Delivery address: ${orderDataPayload.shippingAddress}, ${orderDataPayload.shippingCity}.`;
+        const whatsappConfirmationUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+        return {
+            isCOD: true,
+            orderId: transactionResult.orderId,
+            transactionId,
+            totalAmount: finalAmount,
+            whatsappConfirmationUrl,
+            redirectUrl: `/customerDashboard/myOrder?cod=success&orderId=${transactionResult.orderId}`,
+            message: "Cash on Delivery order created successfully. Verification required before dispatch.",
+        };
+    }
     const paymentResponse = yield (0, payment_utils_1.initiatePayment)(transactionResult.customerData);
     return paymentResponse;
 });
@@ -229,7 +267,8 @@ const getMyOrderHistoryFromDB = (req) => __awaiter(void 0, void 0, void 0, funct
             productPrice: item.price || item.product.price,
             productImage: item.product.imageUrl,
             transactionId: ((_a = item.order.Transaction[0]) === null || _a === void 0 ? void 0 : _a.transactionId) || null,
-            orderStatus: item.order.status,
+            orderStatus: item.status || item.order.status,
+            parentOrderStatus: item.order.status,
             createdAt: item.order.createdAt,
             shippingAddress: item.order.shippingAddress,
             shippingCity: item.order.shippingCity,
@@ -370,7 +409,34 @@ const getCustomerDashboardStatsFromDB = (req) => __awaiter(void 0, void 0, void 
         recentOrders,
     };
 });
+const confirmCodOrderIntoDB = (orderId, user) => __awaiter(void 0, void 0, void 0, function* () {
+    const order = yield prisma_1.default.order.findUnique({
+        where: { id: orderId },
+    });
+    if (!order) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, "Order not found");
+    }
+    if (user.role !== "ADMIN" && order.customerEmail !== user.email) {
+        throw new AppError_1.default(http_status_1.default.FORBIDDEN, "You do not have permission to verify this order.");
+    }
+    yield prisma_1.default.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+        yield tx.order.update({
+            where: { id: orderId },
+            data: { status: client_1.OrderStatus.PROCESSING },
+        });
+        yield tx.orderItem.updateMany({
+            where: { orderId: orderId },
+            data: { status: client_1.OrderStatus.PROCESSING },
+        });
+    }));
+    return {
+        orderId,
+        status: client_1.OrderStatus.PROCESSING,
+        message: "Cash on Delivery order successfully verified and moved to processing!",
+    };
+});
 exports.CustomerServices = {
+    confirmCodOrderIntoDB,
     createOrderIntoDB,
     getItemForReviewFromDB,
     addReviewIntoDB,
